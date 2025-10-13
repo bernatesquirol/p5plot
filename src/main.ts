@@ -1,8 +1,11 @@
 import p5 from 'p5';
 import p5plot from 'p5.plotsvg';
 import GUI from 'lil-gui'; 
+import {point, circle, segment, line} from '@flatten-js/core';
+
 const gui = new GUI();
 import './style.css';
+import { drawFlatten } from './utils';
 const settings = {
 } as any
 
@@ -32,6 +35,7 @@ class Layer {
     settings[`layer_${name}`] = true
     gui.add(settings, `layer_${name}`).onChange((v:boolean)=>this.visible=v)
   }
+
   closeLayer(){
     p5plot.endSvgGroup(this.name)
   }
@@ -51,7 +55,7 @@ const addLayer = (name:string)=>{
   }
   return layers[name]
 }
-let c = 5
+
 type ColorBoard = {
   paddingX?:number, 
   paddingY?:number, 
@@ -129,20 +133,23 @@ const _app = new p5((p5Instance: p5) => {
   const y = 100;
   function drawDesign (board:Board){
     board.draw(p5Instance)
+    
     let a = addLayer("squares")
     if (a.visible){
-      p5Instance.rectMode(p5Instance.CORNER)
-      p5Instance.square(100, 250, 50)
-      p5Instance.rectMode(p5Instance.CENTER)
-      p5Instance.square(100, 250, 50)
-      p5Instance.rectMode(p5Instance.CORNERS)
-      p5Instance.square(100, 250, 50)
-      p5Instance.rectMode(p5Instance.RADIUS)
-      p5Instance.square(100, 250, 50)
-      p5Instance.rectMode(p5Instance.CENTER)
-      p5Instance.rect(75, 350, 100, 50)
-      p5Instance.rectMode(p5Instance.CORNER)
-      p5Instance.rect(75, 350, 100, 50)
+      let s = segment(0,0, 100, 100)
+      drawFlatten(p5Instance, s)
+      // p5Instance.rectMode(p5Instance.CORNER)
+      // p5Instance.square(100, 250, 50)
+      // p5Instance.rectMode(p5Instance.CENTER)
+      // p5Instance.square(100, 250, 50)
+      // p5Instance.rectMode(p5Instance.CORNERS)
+      // p5Instance.square(100, 250, 50)
+      // p5Instance.rectMode(p5Instance.RADIUS)
+      // p5Instance.square(100, 250, 50)
+      // p5Instance.rectMode(p5Instance.CENTER)
+      // p5Instance.rect(75, 350, 100, 50)
+      // p5Instance.rectMode(p5Instance.CORNER)
+      // p5Instance.rect(75, 350, 100, 50)
     }
     a.closeLayer();
 
