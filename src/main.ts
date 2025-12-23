@@ -5,7 +5,7 @@ import p5plot from 'p5.plotsvg';
 
 
 import './style.css';
-import {draw as drawPlot} from './plots/prova'
+import {draw as drawPlot, setup as setupPlot} from './plots/122225_xmas'
 
 
 
@@ -18,14 +18,9 @@ import {draw as drawPlot} from './plots/prova'
 // gui.add( myObject, 'myNumber', { Label1: 0, Label2: 1, Label3: 2 } );
 
 
-
-
-
-const _app = new p5((p5Instance: p5) => {
+new p5((p5Instance: p5) => {
   const p = p5Instance as unknown as p5;
   let bDoExportSvg = false
-  const x = 100;
-  const y = 100;
   
   p.setup = function setup() {
     p.createCanvas(792, 612);
@@ -38,7 +33,8 @@ const _app = new p5((p5Instance: p5) => {
     p5plot.setSvgDefaultStrokeColor('black'); 
     p5plot.setSvgDefaultStrokeWeight(1); 
     p5plot.setSvgFlattenTransforms(false); // if true: larger files + greater fidelity to original
-  };
+    setupPlot(p5Instance)
+  }
   p.keyPressed = ()=>{
      if (p5Instance.key == 's'){ 
       bDoExportSvg = true; 

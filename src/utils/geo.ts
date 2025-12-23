@@ -1,5 +1,17 @@
-import Flatten from "@flatten-js/core";
-
+import Flatten, { Point, Polygon } from "@flatten-js/core";
+export function equilateralTriangleCentroidDown({x,y,w,h}:{x:number, y:number, w:number, h:number}) {
+  // const h = Math.sqrt(3) / 2 * s
+  let p = new Polygon()
+  p.addFace([
+    // top-left
+    new Point(x - w / 2, y + h / 3),
+    // top-right
+    new Point(x + w / 2, y + h / 3),
+    // bottom (apex)
+    new Point(x, y - 2 * h / 3)
+  ])
+  return p
+}
 // Utility: sample uniformly in a triangle (using barycentric coordinates)
 function randomPointInTriangle(a, b, c) {
   const r1 = Math.random();
@@ -17,14 +29,14 @@ function randomPointInTriangle(a, b, c) {
 }
 
 // Utility: compute triangle area (absolute value)
-function triangleArea(a, b, c) {
+export function triangleArea(a, b, c) {
   return Math.abs((a.x * (b.y - c.y) +
                    b.x * (c.y - a.y) +
                    c.x * (a.y - b.y)) / 2);
 }
 
 // Main: random point inside polygon
-function randomPointInPolygon(polygon) {
+export function randomPointInPolygon(polygon) {
   // Flatten.js triangulate
   const triangles = polygon.triangulate();
 
