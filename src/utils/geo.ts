@@ -1,4 +1,4 @@
-import Flatten, { Point, Polygon } from "@flatten-js/core";
+import Flatten, { Point, Polygon, Segment } from "@flatten-js/core";
 export function equilateralTriangleCentroidDown({x,y,w,h}:{x:number, y:number, w:number, h:number}) {
   // const h = Math.sqrt(3) / 2 * s
   let p = new Polygon()
@@ -11,6 +11,13 @@ export function equilateralTriangleCentroidDown({x,y,w,h}:{x:number, y:number, w
     new Point(x, y - 2 * h / 3)
   ])
   return p
+}
+export const createSegment = (center, length, angle)=>{
+  let segment = new Segment(
+    new Point(center.x-length/2, center.y),
+    new Point(center.x+length/2, center.y)
+  )
+  return segment.rotate(angle, center)
 }
 // Utility: sample uniformly in a triangle (using barycentric coordinates)
 function randomPointInTriangle(a, b, c) {

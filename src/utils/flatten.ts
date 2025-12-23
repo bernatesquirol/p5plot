@@ -18,7 +18,7 @@ export function drawFlatten(p5Instance:p5, objs:FlattenObject|FlattenObject[]) {
   for (let obj of objs){
 
     if (obj instanceof Flatten.Point) {
-      p5Instance.point(obj.x, obj.y);
+      p5Instance.circle(obj.x, obj.y, 4);
       
     } else if (obj instanceof Flatten.Segment) {
       p5Instance.line(obj.ps.x, obj.ps.y, obj.pe.x, obj.pe.y);

@@ -19,6 +19,7 @@ export function setup(p5: p5){
   //   isStatic: true
   // });
   // Matter.World.add(world, ground);
+  boxes = [new Box({x:50, y:50, anglePattern: Math.random()*Math.PI, w:50, h:50}, {world, p5:p5})]
   treeShape = equilateralTriangleCentroidDown({y:p5.height/2, x:p5.width/2, w:200, h:400})
   treeShape.edges.forEach((e:Edge)=>{
     let w = edgeToBoundary(e.start, e.end)
@@ -31,7 +32,7 @@ export function setup(p5: p5){
     if (bodyA.isStatic || bodyB.isStatic) return;
 
     const normal = pair.collision.normal;
-    const strength = 0.25;
+    const strength = 1.25;
 
     const force = Matter.Vector.mult(normal, strength);
 
