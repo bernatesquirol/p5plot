@@ -1,21 +1,181 @@
-import Flatten, { Point, Polygon, Segment } from "@flatten-js/core";
+import { Circle, Point, Polygon, Segment, point } from "@flatten-js/core";
+import * as martinez from 'martinez-polygon-clipping';
 export function equilateralTriangleCentroidDown({x,y,w,h}:{x:number, y:number, w:number, h:number}) {
   // const h = Math.sqrt(3) / 2 * s
   let p = new Polygon()
   p.addFace([
-    // top-left
-    new Point(x - w / 2, y + h / 3),
-    // top-right
-    new Point(x + w / 2, y + h / 3),
-    // bottom (apex)
-    new Point(x, y - 2 * h / 3)
+    // bottom-left
+    point(x - w / 2, y + h / 2),
+    // bottom-right
+    point(x + w / 2, y + h / 2),
+    // up
+    point(x, y -  h / 2)
   ])
   return p
 }
+// type Orientation = "N"
+export const createCircle = ({x,y,r}, orientation: string = "x")=>{
+  let middleX =x;
+  let middleY = y;
+  if (orientation.toLowerCase().includes("n")){
+    middleY += r
+  }
+  if (orientation.toLowerCase().includes("s")){
+    middleY -= r
+  }
+  if (orientation.toLowerCase().includes("o")){
+    middleX += r
+  }  
+  if (orientation.toLowerCase().includes("e")){
+    middleX -= r
+  }
+  return new Circle(new Point(middleX,middleY), r)
+}
+export const createRect = ({x,y,w,h}, orientation: string="NO")=>{
+  let middleX =x;
+  let middleY = y;
+  if (orientation.toLowerCase().includes("n")){
+    middleY += h/2
+  }
+  if (orientation.toLowerCase().includes("s")){
+    middleY -= h/2
+  }
+  if (orientation.toLowerCase().includes("o")){
+    middleX += w/2
+  }  
+  if (orientation.toLowerCase().includes("e")){
+    middleX -= w/2
+  }
+  return createRectCentroid({x:middleX,y:middleY,w,h})
+}
+export const createRectCentroid = ({x,y,w,h})=>{
+  let p = new Polygon()
+  p.addFace([
+    // top-left
+    point(x - w / 2, y + h / 2),
+    // top-right
+    point(x + w / 2, y + h / 2),
+    // bottom right
+    point(x + w / 2, y - h / 2),
+    // bottom left
+    point(x - w / 2, y - h / 2),
+    
+  ])
+  return p
+}
+export const createRectTopLeft = ({x,y,w,h})=>{
+  let p = new Polygon()
+  p.addFace([
+    // top-left
+    point(x, y),
+    // top-right
+    point(x + w, y),
+    // bottom right
+    point(x + w, y + h ),
+    // bottom left
+    point(x, y + h),
+    point(x, y)
+  ])
+  return p
+}
+export const getCoordsPoint = (p: Point)=>{
+  return [p.x, p.y]
+}
+export const center = (square:{w:number,h:number}, total:{w:number,h:number})=>{
+  return {
+    x: (total.w-square.w)/2+square.w/2,
+    y: (total.h-square.h)/2+square.h/2
+  }
+}
+export const holdRatio = (
+  {w,h}:{w: number,
+  h: number},
+  ratio: string
+): { w: number; h: number } => {
+  const [rw, rh] = ratio.split(":").map(Number);
+
+  if (!rw || !rh || rw <= 0 || rh <= 0) {
+    throw new Error("Invalid ratio format. Use something like '16:9'.");
+  }
+
+  const targetRatio = rw / rh;
+  const maxRatio = w / h;
+
+  let w_2: number;
+  let h_2: number;
+
+  if (maxRatio > targetRatio) {
+    // height is the limiting factor
+    h_2 = h;
+    w_2 = h * targetRatio;
+  } else {
+    // width is the limiting factor
+    w_2 = w;
+    h_2 = w / targetRatio;
+  }
+
+  return {
+    w: w_2,
+    h: h_2,
+  };
+};
+export const poligonizeCircle = (c:Circle)=>{
+// TODO get coords -> polygon
+let p = new Polygon()
+p.addFace(getCoordsCircle(c).map(p=>point(p[0], p[1])))
+return p
+}
+export function getCoordsCircle(c: Circle, n?:number) {
+  let {pc, r} = c
+  if (!n){
+    n = Math.round(Math.PI*Math.sqrt(r/(2*0.1)))
+  }
+  let points: [number,number][] = [];
+  for (let i = 0; i < n; i++) {
+    const angle = (2*Math.PI / n) * i;
+    const x = pc.x + r * Math.cos(angle);
+    const y = pc.y + r * Math.sin(angle);
+    points.push([x, y]);
+  }
+  return points;
+}
+export const getCoordsPolygon = (p: Polygon)=>{
+  return [...p.edges].map(e=>[getCoordsPoint(e.shape.ps),getCoordsPoint(e.shape.pe)])
+}
+export const getCoords = (p: Polygon|Circle)=>{
+  if ((p as any).r){
+    return [getCoordsCircle(p as Circle)]
+  } 
+  return getCoordsPolygon(p as Polygon)
+}
+export const getPolygonFromCoords = (faces)=>{
+  let p = new Polygon()
+  faces.forEach(coords=>{
+    p.addFace(coords.map(c=>point(c)))
+  })
+  return p
+}
+export const diff = (p1: Polygon, p2: Polygon)=>{
+  // let polygon1 = new Polygon();
+  // polygon1.addFace([point(0,0), point(0, 50), point(50, 50), point(50, 0)]);
+
+  // let polygon2 = new Polygon();
+  // polygon2.addFace([point(25, 25), point(25, 75), point(75,75), point(75,25)]);
+  // let polygon_res = diff(polygon1, polygon2)
+  let result = martinez.diff(getCoords(p1) as any, getCoords(p2) as any)
+  // return new Polygon(result)
+  if (result&&result.length>0){
+    let a = result.map(p=>getPolygonFromCoords(p))
+    if (a.length>=1 ) return a[0]
+  }
+  return null
+}
+
+    
 export const createSegment = (center, length, angle)=>{
   let segment = new Segment(
-    new Point(center.x-length/2, center.y),
-    new Point(center.x+length/2, center.y)
+    point(center.x-length/2, center.y),
+    point(center.x+length/2, center.y)
   )
   return segment.rotate(angle, center)
 }
@@ -32,7 +192,7 @@ function randomPointInTriangle(a, b, c) {
   const x = u * a.x + v * b.x + w * c.x;
   const y = u * a.y + v * b.y + w * c.y;
 
-  return new Flatten.Point(x, y);
+  return point(x, y);
 }
 
 // Utility: compute triangle area (absolute value)
@@ -44,34 +204,20 @@ export function triangleArea(a, b, c) {
 
 // Main: random point inside polygon
 export function randomPointInPolygon(polygon) {
-  // Flatten.js triangulate
-  const triangles = polygon.triangulate();
+  const { xmin, ymin, xmax, ymax } = polygon.box;
 
-  // Collect all triangles as triplets of points
-  const tris = triangles.map(tri => {
-    const pts = tri.points;
-    return [pts[0], pts[1], pts[2]];
-  });
+  while (true) {
+    const x = xmin + Math.random() * (xmax - xmin);
+    const y = ymin + Math.random() * (ymax - ymin);
 
-  // Compute areas
-  const areas = tris.map(([a,b,c]) => triangleArea(a,b,c));
-  const totalArea = areas.reduce((s,a) => s + a, 0);
+    const pt = new Point(x, y);
 
-  // Choose triangle weighted by area
-  let r = Math.random() * totalArea;
-  let chosen = tris[0];
-  for (let i = 0; i < tris.length; i++) {
-    if (r < areas[i]) {
-      chosen = tris[i];
-      break;
+    if (polygon.contains(pt)) {
+      return pt;
     }
-    r -= areas[i];
   }
-
-  // Sample a point in the chosen triangle
-  const [a,b,c] = chosen;
-  return randomPointInTriangle(a,b,c);
 }
+
 
 // -------------------
 // Example usage:

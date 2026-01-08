@@ -1,7 +1,16 @@
 
-import { Point } from '@flatten-js/core';
+import { Edge, Point, Polygon } from '@flatten-js/core';
 import *  as Matter from 'matter-js'
-export function edgeToBoundary(v1:Point, v2:Point, thickness = 10) {
+export const bindHollowBody = (world: Matter.World, polygon:Polygon, thickness = 10)=>{
+    let b: Matter.Body[] = []
+    polygon.edges.forEach((e:Edge)=>{
+      let w = edgeToBoundary(e.start, e.end, thickness)
+      Matter.World.add(world, w);
+      b.push(w)
+    })
+    return b
+  }
+export function edgeToBoundary(v1:Point, v2:Point, thickness: number) {
   const length = Matter.Vector.magnitude(
     Matter.Vector.sub(v2, v1)
   );

@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc && vite build",
-    "deploy": "netlify deploy --dir=dist",
+    "deploy": "netlify deploy --dir=dist --prod",
     "serve": "vite preview",
     "tsc": "tsc"
   },
@@ -14,11 +14,15 @@
     "vite": "^2.3.3"
   },
   "dependencies": {
+    "@flatten-js/boolean-op": "^1.1.4",
     "@flatten-js/core": "^1.6.4",
+    "2d-geometry": "^3.0.0",
     "lil-gui": "^0.20.0",
     "lodash": "^4.17.21",
+    "martinez-polygon-clipping": "^0.8.1",
     "matter-js": "^0.20.0",
     "p5": "^1.3.1",
-    "p5.plotsvg": "^0.1.6"
+    "p5.plotsvg": "^0.1.6",
+    "uuid": "^13.0.0"
   }
 }

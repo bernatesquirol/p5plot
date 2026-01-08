@@ -1,6 +1,6 @@
 import p5 from 'p5';
 import { Board } from '../../components/Board';
-import { bindHollowBody, center, createCircle, createRect, diff, drawFlatten, equilateralTriangleCentroidDown, holdRatio, inRange, poligonizeCircle, randomBetween, randomPointInPolygon, WithAttrs } from '../../utils';
+import { bindHollowBody, createCircle, createRect, diff, drawFlatten, equilateralTriangleCentroidDown, poligonizeCircle, randomBetween, WithAttrs } from '../../utils';
 import { Point, Polygon, vector, } from '@flatten-js/core';
 
 import * as Matter from 'matter-js'
@@ -14,8 +14,6 @@ export class XmasPlot extends ParentPlot {
   engine: Matter.Engine;
   engineSky: Matter.Engine;
   boxes: Box[] = []
-  greenTreeBoxes: Box[] = []
-  redTreeBoxes: Box[] = []
   boxesToPlot: Box[] = []
   treeShape: Polygon;
   skyShapeWhole: WithAttrs<Polygon>;
@@ -23,8 +21,7 @@ export class XmasPlot extends ParentPlot {
   groundShapeWhole: WithAttrs<Polygon>;
   p5: p5
   heightTriangle:number
-  maxSizeBox : number
-  constructor(p5: p5, { x, y, height, width, saveSVG, centerTree, angleTree }: {centerTree?:{x:number,y:number}, angleTree?:number,x?:number,y?:number, height:number, width:number, saveSVG: ()=>void}) {
+  constructor(p5: p5, { centerTree,angleTree,x,y,height, width, saveSVG }: {centerTree?:{x:number,y:number}, angleTree?:number, x?:number,y?:number, height:number, width:number, saveSVG: ()=>void}) {
     super({p5})
     this.p5 = p5
     
@@ -39,21 +36,19 @@ export class XmasPlot extends ParentPlot {
     this.engine = Matter.Engine.create()
     this.engineSky = Matter.Engine.create()
     let world = this.engine.world;
-    this.engine.gravity.y = -this.guiParam("gravityTree", 0,)
+    this.engine.gravity.y = -this.guiParam("gravityTree", 0.1,)
     let worldSky = this.engineSky.world;
     this.engineSky.gravity.y = this.guiParam("gravitySky", 0.1,)
-    let { w:wTree, h:hTree } = holdRatio({w:width*0.7, h: height*0.7 },"2:4")
+    this.heightTriangle = height*0.1
 
-    this.heightTriangle = hTree
-    this.maxSizeBox = this.heightTriangle*0.005
-    // let widthTriangle = width*0.4
+    let widthTriangle = width*0.6
     let boundsShape = createRect({ y: 0, x: 0, w: width, h: height }, "NO")
     bindHollowBody(world, boundsShape)
     if (!centerTree){
-      centerTree = center({w:wTree,h:hTree}, {w:width,h:height})
+      centerTree =  {y:height / 2,  x:width / 2}
     }
     let rotationCenter =  new Point(Object.values(centerTree) as any)
-    this.treeShape = equilateralTriangleCentroidDown({ ...centerTree, w:wTree, h:hTree}).rotate(angleTree, rotationCenter).translate(t)
+    this.treeShape = equilateralTriangleCentroidDown({ ...centerTree, w: widthTriangle, h: this.heightTriangle }).rotate(angleTree||0,rotationCenter).translate(t)
     // shapesToRender.push(this.treeShape)
     bindHollowBody(world, this.treeShape)
     this.skyShapeWhole = createRect({ y: height / 2, x: width / 2, w: this.heightTriangle * 1.5, h: this.heightTriangle * 0.75 }, "S").translate(t)
@@ -69,9 +64,8 @@ export class XmasPlot extends ParentPlot {
     // groundShape = diff(snowBodyCircle, this.treeShape)!
     this.sphereShape = diff(poligonizeCircle(snowBody), this.treeShape)!
     bindHollowBody(worldSky, this.sphereShape)
- 
+
     this.guiButton("randomize", () => {
-      this.randomize(0.6)
       // make grid in circle
       // addNewClick()
       // make grid in triangle
@@ -120,18 +114,18 @@ export class XmasPlot extends ParentPlot {
     let inSphere = this.sphereShape.contains(newPoint)
     // let inGround = groundShape.contains(newPoint)
     // TODO: height and width depending on own height and width
-    // const maxSize = this.heightTriangle*0.005
+    const maxSize = this.heightTriangle*0.005
     if (inTree) {
-      this.redTreeBoxes = [...this.redTreeBoxes, new Box({
+      this.boxesToPlot = [...this.boxesToPlot, new Box({
         fill: this.p5.color("white"),
         stroke: this.p5.color("red"),
-        x: this.p5.mouseX, y: this.p5.mouseY, type: BoxType.circle, anglePattern: randomBetween(0, 180), r: randomBetween(3, 10)*this.maxSizeBox/2
+        x: this.p5.mouseX, y: this.p5.mouseY, type: BoxType.circle, anglePattern: randomBetween(0, 180), r: randomBetween(3, 10)*maxSize/2
       }, { world: this.engine.world, p5: this.p5 })]
     } else if (inSphere) {
       this.boxes = [...this.boxes, new Box({
         fill: undefined,
         stroke: this.p5.color("white"),
-        x: this.p5.mouseX, y: this.p5.mouseY, type: BoxType.circle, anglePattern: randomBetween(0, 180), r: randomBetween(3, 10)*this.maxSizeBox/2
+        x: this.p5.mouseX, y: this.p5.mouseY, type: BoxType.circle, anglePattern: randomBetween(0, 180), r: randomBetween(3, 10)*maxSize/2
       }, { world: this.engineSky.world, p5: this.p5 })]
     } else {
       if (this.skyShapeWhole.contains(newPoint)) {
@@ -139,65 +133,25 @@ export class XmasPlot extends ParentPlot {
           isStatic: true,
           fill: undefined,
           stroke: this.p5.color("yellow"),
-          x: this.p5.mouseX, y: this.p5.mouseY, type: BoxType.circle, anglePattern: randomBetween(0, 180), r: randomBetween(3, 10)*this.maxSizeBox/2
+          x: this.p5.mouseX, y: this.p5.mouseY, type: BoxType.circle, anglePattern: randomBetween(0, 180), r: randomBetween(3, 10)*maxSize
         }, { world: this.engineSky.world, p5: this.p5 })]
       }
     }
   }
-  randomize = (probability:number)=>{
-    let numBoxes = 100//randomBetween(50, 100)
-    let numSpheres = probability
-    inRange(numBoxes).forEach(_a=>{
-      let randomPointTree = randomPointInPolygon(this.treeShape)
-      let {x,y} = randomPointTree
-      let isSphere = Math.random()<numSpheres
-      if (isSphere){
-        let red = new Box({
-          fill: this.p5.color("white"),
-          stroke: this.p5.color("red"),
-          x, y, type: BoxType.circle, anglePattern: randomBetween(0, 180), r: randomBetween(3, 10)*this.maxSizeBox/2
-        }, { world: this.engine.world, p5: this.p5 })
-        this.redTreeBoxes.push(red)
-      }else{
-        let green =new Box({
-        fill: this.p5.color("white"),
-        stroke: this.p5.color("green"),
-        x,
-        y,
-        type: BoxType.rect,
-        anglePattern: randomBetween(0, 180),
-        w: randomBetween(4, 10)*this.maxSizeBox,
-        h: randomBetween(4, 10)*this.maxSizeBox,
-      }, { world: this.engine.world, p5: this.p5 })
-        this.greenTreeBoxes.push(green)
-      }
-    })
-    // this.boxesToPlot = [...this.boxesToPlot, ]
-    // this.boxesToPlot = [...this.boxesToPlot, new Box({
-    //     fill: this.p5.color("white"),
-    //     stroke: this.p5.color("green"),
-    //     x: this.p5.mouseX,
-    //     y: this.p5.mouseY,
-    //     type: BoxType.rect,
-    //     anglePattern: randomBetween(0, 180),
-    //     w: randomBetween(4, 10)*this.maxSizeBox,
-    //     h: randomBetween(4, 10)*this.maxSizeBox,
-    //   }, { world: this.engine.world, p5: this.p5 })]
-  }
   addNewDrag = (newPoint: Point) => {
     let inTree = this.treeShape.contains(newPoint)
     let inSphere = this.sphereShape.contains(newPoint)
-    
+    const maxSize = this.heightTriangle*0.005
     if (inTree) {
-      this.greenTreeBoxes = [...this.greenTreeBoxes, new Box({
+      this.boxesToPlot = [...this.boxesToPlot, new Box({
         fill: this.p5.color("white"),
         stroke: this.p5.color("green"),
         x: this.p5.mouseX,
         y: this.p5.mouseY,
         type: BoxType.rect,
         anglePattern: randomBetween(0, 180),
-        w: randomBetween(4, 10)*this.maxSizeBox,
-        h: randomBetween(4, 10)*this.maxSizeBox,
+        w: randomBetween(4, 10)*maxSize,
+        h: randomBetween(4, 10)*maxSize,
       }, { world: this.engine.world, p5: this.p5 })]
     } else if (inSphere) {//|| inGround || inSky){
       this.boxes = [...this.boxes, new Box({
@@ -206,8 +160,8 @@ export class XmasPlot extends ParentPlot {
         y: this.p5.mouseY,
         type: BoxType.rect,
         anglePattern: randomBetween(0, 180),
-        w: randomBetween(12, 20),
-        h: randomBetween(12, 20),
+        w: randomBetween(4, 10)*maxSize,
+        h: randomBetween(4, 10)*maxSize,
       }, { world: this.engineSky.world, p5: this.p5 })]
     }
   }
@@ -254,16 +208,7 @@ export class XmasPlot extends ParentPlot {
     let treeLayer = this.addLayer("tree", ()=>{
       drawFlatten(p5, [this.treeShape])
     }, { visible: false })
-    let redBoxesLayer = this.addLayer("redboxes", ()=>{
-      for (var i = 0; i < this.redTreeBoxes.length; i++) {
-        this.redTreeBoxes[i].show();
-      }
-    })
-    let greenBoxesLayer = this.addLayer("greenboxes", ()=>{
-      for (var i = 0; i < this.greenTreeBoxes.length; i++) {
-        this.greenTreeBoxes[i].show();
-      }
-    })
+    
     let boxesLayer = this.addLayer("boxes", ()=>{
       for (var i = 0; i < this.boxes.length; i++) {
         this.boxes[i].show();
@@ -271,11 +216,11 @@ export class XmasPlot extends ParentPlot {
 
     })
     
-    // let boxesToPlotLayer = this.addLayer("boxesToPlot", ()=>{
-    //   for (var i = 0; i < this.boxesToPlot.length; i++) {
-    //     this.boxesToPlot[i].show();
-    //   }
-    // })
+    let boxesToPlotLayer = this.addLayer("boxesToPlot", ()=>{
+      for (var i = 0; i < this.boxesToPlot.length; i++) {
+        this.boxesToPlot[i].show();
+      }
+    })
     // Tests of circles and ellipses with various ellipseModes
     this.drawLayers()
   }
