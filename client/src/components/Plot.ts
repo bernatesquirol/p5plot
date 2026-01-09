@@ -83,7 +83,8 @@ export abstract class SinglePlot extends Plot {
   }
   addLayer(name: string, draw: () => void, attrs: { visible?: boolean } = { visible: true }) {
     if (!this.layers[name]) {
-      let newLayer = new Layer(name, draw, attrs)
+      let index = Object.keys(this.layers).length 
+      let newLayer = new Layer(index, name, draw, attrs)
       this.layers[name] = newLayer
       this.guiParam(`layer_${name}`, attrs.visible != null ? attrs.visible : true,)
     }
@@ -115,7 +116,8 @@ export abstract class MultiPlot extends Plot {
   addLayer(name: string, draw: () => void, attrs: { visible?: boolean } = { visible: true }) {
     if (!this.layers[name]) {
       this.layersDrawCount[name] = this.drawCount
-      let newLayer = new Layer(name, draw, attrs)
+      let index = Object.keys(this.layers).length 
+      let newLayer = new Layer(index, name, draw, attrs)
       this.layers[name] = newLayer
       this.guiParam(`layer_${name}`, attrs.visible != null ? attrs.visible : true,)
     } else {

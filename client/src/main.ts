@@ -79,7 +79,11 @@ new p5((p5Instance: p5) => {
   p.draw = function draw() {
     
     // board.draw(p5Instance)
-    if (bDoExportSvg) p5plot.beginRecordSVG(p5Instance, "output.svg")
+    if (bDoExportSvg) {
+      p5plot.beginRecordSVG(p5Instance, "output.svg")
+      // beginrecord resets svgheader
+      p5plot.injectSvgHeaderAttribute("xmlns:inkscape", "http://www.inkscape.org/namespaces/inkscape")
+    }
     p.background(255);
     // p.fill('red');
     // p.rect(x, y, 50, 50);

@@ -77,7 +77,7 @@ export class Board {
   }
   addLayer(name:string, attrs: {visible?:boolean} = {visible:true}){
     if (!this.layers[name]){
-        this.layers[name] = new Layer(name, attrs)
+        this.layers[name] = new Layer(0, name, attrs)
         this.guiParam(`layer_${name}`,attrs.visible!=null?attrs.visible:true, )
     }
     return this.layers[name]
