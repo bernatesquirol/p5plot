@@ -1,7 +1,12 @@
 from shapely import Polygon, transform, LineString, MultiLineString, GeometryCollection
 from nextdraw import NextDraw
 import shapely_utils as shu
-
+def set_settings(plotter):
+    plotter.options.units = 1
+    plotter.options.speed_pendown = 18
+    plotter.options.pen_rate_lower = 10
+    plotter.options.pen_rate_raise = 20
+    plotter.update()
 def init_plotter():
 
     nd1 = NextDraw()                # Initialize class
@@ -9,9 +14,7 @@ def init_plotter():
     if not nd1.connect():           # Open serial port to NextDraw;
         # quit()   
         pass
-    nd1.options.units = 1
-    # nd1.options.pen_pos_down = 32
-    nd1.update()
+    set_settings(nd1)
     return nd1
 
 def try_point(plotter, x,y):
@@ -42,7 +45,7 @@ def plot(plotter, geometry, startingPoint = (0,0), depth=0):
     return geometry
 
 def alignment_manouver(plotter, calibration_point, color="color",):
-    plotter.interactive()
+    # plotter.interactive()
     plotter.penup()
     delta = [0,0]
     val = None
@@ -53,6 +56,10 @@ def alignment_manouver(plotter, calibration_point, color="color",):
         
         if val == "ok" or val=="":
             break
+        if val == "qq":
+            return
+        if val == "q":
+            return delta
         plotter.penup()
         plotter.options.pen_pos_down += int(val)
         plotter.update()
@@ -64,8 +71,10 @@ def alignment_manouver(plotter, calibration_point, color="color",):
         
         if val == "ok" or val=="":
             break
-        if val == 'q':
+        if val == "qq":
             return
+        if val == "q":
+            return delta
         x_y = val.replace("(","").replace(")","").split(",")
         if len(x_y)>1:
             x,y=x_y
@@ -73,9 +82,14 @@ def alignment_manouver(plotter, calibration_point, color="color",):
             delta[1]+=float(y)/10
         plotter.penup()
     val = None
-    # while (val!="ok"):
-        
-    # val = None
+    while (val==None):
+        plotter.penup()  
+        val = input("treu proteccio "+color) 
+        if val == "qq":
+            return
+        if val == "q":
+            return delta
+    val = None
     # plotter.moveto(*calibration_point)
     while (val!="ok"):
         plotter.penup()
@@ -86,11 +100,17 @@ def alignment_manouver(plotter, calibration_point, color="color",):
             delta = [0,0]
         if val == "ok" or val=="":
             break
-        if val == 'q':
+        if val == "qq":
             return
+        if val == "q":
+            return delta
         x_y = val.replace("(","").replace(")","").split(",")
         if len(x_y)>1:
             x,y=x_y
             delta[0]+=float(x)/10
             delta[1]+=float(y)/10
     return delta
+
+def reset(plotter):
+    plotter.interactive()
+    set_settings(plotter)
