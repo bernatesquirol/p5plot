@@ -10,6 +10,22 @@ export const bindHollowBody = (world: Matter.World, polygon:Polygon, thickness =
     })
     return b
   }
+  export const forceTowardsPoint = (box: Matter.Body, targetPoint: Flatten.Point, forceMagnitude=0.001)=>{
+    // Calculate direction vector from box to target point
+const dx = targetPoint.x - box.position.x;
+const dy = targetPoint.y - box.position.y;
+
+// Calculate distance
+const distance = Math.sqrt(dx * dx + dy * dy);
+
+// Normalize and scale by force magnitude
+
+const forceX = (dx / distance) * forceMagnitude;
+const forceY = (dy / distance) * forceMagnitude;
+
+// Apply force to the box
+Matter.Body.applyForce(box, box.position, { x: forceX, y: forceY });
+  }
 export function edgeToBoundary(v1:Point, v2:Point, thickness: number) {
   const length = Matter.Vector.magnitude(
     Matter.Vector.sub(v2, v1)

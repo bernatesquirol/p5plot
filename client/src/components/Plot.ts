@@ -7,7 +7,7 @@ export enum DisplayMode {
   PRINT,
   FULLSCREEN
 }
-export const DPI = 96;
+export const DPI = 100;
 export const PAPER_SIZES = {
   A4_v: { w: 8.27 * DPI, h: 11.69 * DPI },
   A4_h: { w: 11.69 * DPI, h: 8.27 * DPI, },
@@ -22,12 +22,14 @@ export abstract class Plot {
   gui: GUI
   settings: Record<string, any>
   p5: p5
+  funcsCalled: Record<string,boolean>
   static displayMode: DisplayMode
   static paper?: Paper
   constructor({ p5, }:{p5:p5}) {
     this.gui = new GUI();
     this.settings = {}
     this.p5 = p5
+    this.funcsCalled={}
     // this.displayMode = displayMode||DisplayMode.FULLSCREEN
     // if (displayMode === DisplayMode.PRINT){
     //   this.paper = PAPER_SIZES[paperSize!]!
@@ -36,8 +38,24 @@ export abstract class Plot {
       this.gui.close()
     }
   }
-  guiColor(label, defaultValue: p5.Color, showInProd: boolean = false) {
-    if (!this.settings[label]) {
+  getFunc(key){
+    return this.funcsCalled[key]
+  }
+  once(fn, key:string,...args) {
+      if (!(key in this.funcsCalled)) this.funcsCalled[key] = false;
+      let result;
+      let me = this
+      let f = function (...args) {
+        if (!me.getFunc(key)) {
+          me.funcsCalled[key] = true
+          result = fn(...args);
+        }
+        return result;
+      };
+      return f(...args)
+    }
+    guiColor(label, defaultValue: p5.Color, showInProd: boolean = false) {
+      if (!this.settings[label]) {
       this.settings[label] = p5ColorToHex(this.p5, defaultValue)
       if (!isProd() || showInProd) {
         this.gui.addColor(this.settings, label,).onChange((v: any) => {
@@ -75,11 +93,13 @@ export abstract class Plot {
     throw new Error("Abstract method");
   }
 }
+
 export abstract class SinglePlot extends Plot {
   layers: Record<string, Layer>
-  constructor({ p5: p5, displayMode }: {p5:p5, displayMode?: DisplayMode}) {
-    super({ p5, displayMode })
-    this.layers = {}
+  constructor({ p5: p5, displayMode, }: {p5:p5, displayMode?: DisplayMode,}) {
+    Plot.displayMode = displayMode!
+    super({ p5,  })
+    this.layers = {}    
   }
   addLayer(name: string, draw: () => void, attrs: { visible?: boolean } = { visible: true }) {
     if (!this.layers[name]) {
@@ -98,6 +118,25 @@ export abstract class SinglePlot extends Plot {
   }
   draw() {
     throw new Error("Abstract method");
+  }
+}
+export abstract class ScenedSinglePlot<T extends string> extends SinglePlot {
+  scenes: T[]
+  currentScene : string
+  currentSceneIndex : number
+  
+  constructor({p5, scenes}){
+    super({p5})
+    this.scenes = scenes
+    this.currentSceneIndex = 0
+    this.currentScene = this.scenes[this.currentSceneIndex]
+    this.guiButton("nextScene", () => {
+      this.nextScene()
+    })
+  }
+  nextScene(){
+    this.currentSceneIndex = (this.currentSceneIndex!  + 1) % this.scenes!.length
+    this.currentScene = this.scenes[this.currentSceneIndex]
   }
 }
 export abstract class MultiPlot extends Plot {

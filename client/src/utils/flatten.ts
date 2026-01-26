@@ -1,6 +1,7 @@
 import {Point, Segment, Line, Circle, Arc, Box, Polygon, Multiline} from "@flatten-js/core";
 import p5 from "p5";
-export type WithAttrs<T> = T&{attrs?:{stroke?:p5.Color, fill?: p5.Color}}
+export type P5Style = {stroke?:p5.Color, fill?: p5.Color}
+export type WithAttrs<T> = T&{attrs?:P5Style}
 export type FlattenObject =
     | Point
     | Segment
@@ -11,20 +12,25 @@ export type FlattenObject =
     | Polygon
     | Multiline;
 export type FlattenObjectWithAttrs = WithAttrs<FlattenObject>
-export function drawFlatten(p5Instance:p5, objs:FlattenObjectWithAttrs|FlattenObjectWithAttrs[]) {
+export const tangentAngle = (k: Flatten.Point, p: Flatten.Point): number => {
+  return Math.atan2(p.y - k.y, p.x - k.x);
+};
+
+export function drawFlatten(p5Instance:p5, objs:FlattenObjectWithAttrs|FlattenObjectWithAttrs[],style?:P5Style) {
 //   p5Instance.noFill();
-  if (!Array.isArray(objs)){
-    objs = [objs]
-  }
-  for (let obj of objs){
-    if (obj.attrs){
+if (!Array.isArray(objs)){
+  objs = [objs]
+}
+for (let obj of objs){
+    let styleGeo = (style || obj.attrs)
+    if (styleGeo){
       p5Instance.push()
-      if (obj.attrs.fill){
-        p5Instance.fill(obj.attrs.fill)
+      if (styleGeo.fill){
+        p5Instance.fill(styleGeo.fill)
         p5Instance.stroke(255,255,255,0)
       }
-      if (obj.attrs.stroke){
-        p5Instance.stroke(obj.attrs.stroke)
+      if (styleGeo.stroke){
+        p5Instance.stroke(styleGeo.stroke)
       }
     }
     if (obj instanceof Point) {
@@ -67,8 +73,11 @@ export function drawFlatten(p5Instance:p5, objs:FlattenObjectWithAttrs|FlattenOb
         p5Instance.line(edge.start.x, edge.start.y, edge.end.x, edge.end.y);
       }
     }
-    if (obj.attrs){
+    if (styleGeo){
       p5Instance.pop()
     }
   }
+}
+export const centroid = (c: Polygon)=>{
+  return c.box.center
 }

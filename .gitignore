@@ -7,3 +7,5 @@
 ./client/.netlify
 server/__pycache__/*
 server/utils/__pycache__/*
+client/node_modules/*
+client/dist/*

@@ -1,4 +1,4 @@
-import { Circle, Point, Polygon, Segment, point } from "@flatten-js/core";
+import { Circle, Matrix, Point, Polygon, Segment, Vector, point, segment } from "@flatten-js/core";
 import * as martinez from 'martinez-polygon-clipping';
 export function equilateralTriangleCentroidDown({x,y,w,h}:{x:number, y:number, w:number, h:number}) {
   // const h = Math.sqrt(3) / 2 * s
@@ -12,6 +12,152 @@ export function equilateralTriangleCentroidDown({x,y,w,h}:{x:number, y:number, w
     point(x, y -  h / 2)
   ])
   return p
+}
+type StarParams = {
+  x: number
+  y: number
+  outerR: number
+  innerR: number
+  outerVariation?: number
+  innerVariation?: number
+  angleVariation?: number
+}
+export class Star {
+  inners: Point[]
+  outers: Point[]
+  polygon: Polygon
+  
+  constructor({
+    x,
+    y,
+    outerR,
+    innerR,
+    outerVariation = 0.2,
+    innerVariation = 0.2,
+    angleVariation = 0.3,
+  }: StarParams) {
+    this.inners = []
+    this.outers = []
+    const points: Point[] = []
+    const tips = 5
+    const baseStep = (Math.PI * 2) / tips // 72° between tips
+
+    // Start pointing up
+    const startAngle = -Math.PI / 2
+
+    for (let i = 0; i < tips; i++) {
+      // Outer point (tip) - randomize within outer range
+      const outerAngleOffset = (Math.random() - 0.5) * angleVariation
+      const outerAngle = startAngle + i * baseStep + outerAngleOffset
+      const outerRadius = outerR * ((1 - outerVariation) + Math.random() * (2 * outerVariation))
+      let outer = point(
+        x + Math.cos(outerAngle) * outerRadius,
+        y + Math.sin(outerAngle) * outerRadius
+      )
+      this.outers.push(outer)
+      points.push(outer)
+
+      // Inner point (valley) - randomize within inner range
+      const innerAngleOffset = (Math.random() - 0.5) * angleVariation
+      const innerAngle = startAngle + i * baseStep + baseStep / 2 + innerAngleOffset
+      const innerRadius = innerR * ((1 - innerVariation) + Math.random() * (2 * innerVariation))
+      let inner = point(
+        x + Math.cos(innerAngle) * innerRadius,
+        y + Math.sin(innerAngle) * innerRadius
+      )
+      points.push(inner)
+      this.inners.push(inner) // Fixed: was pushing outer instead of inner
+    }
+
+    this.polygon = new Polygon()
+    this.polygon.addFace(points)
+  }
+  
+  scale(sx: number, sy?: number): Star {
+    const newStar = new Star({ x: 0, y: 0, outerR: 1, innerR: 1 }) // dummy params
+    
+    const actualSy = sy ?? sx
+    newStar.polygon = this.polygon.scale(sx, actualSy) as Polygon
+    
+    const center = this.polygon.box.center
+    
+    newStar.inners = this.inners.map(p => 
+      point(
+        center.x + (p.x - center.x) * sx,
+        center.y + (p.y - center.y) * actualSy
+      )
+    )
+    
+    newStar.outers = this.outers.map(p => 
+      point(
+        center.x + (p.x - center.x) * sx,
+        center.y + (p.y - center.y) * actualSy
+      )
+    )
+    
+    return newStar
+  }
+  
+  rotate(angle: number, center?: Point): Star {
+    const newStar = new Star({ x: 0, y: 0, outerR: 1, innerR: 1 }) // dummy params
+    
+    newStar.polygon = this.polygon.rotate(angle, center) as Polygon
+    
+    const rotationCenter = center ?? this.polygon.box.center
+    const cos = Math.cos(angle)
+    const sin = Math.sin(angle)
+    
+    const rotatePoint = (p: Point) => {
+      const dx = p.x - rotationCenter.x
+      const dy = p.y - rotationCenter.y
+      return point(
+        rotationCenter.x + dx * cos - dy * sin,
+        rotationCenter.y + dx * sin + dy * cos
+      )
+    }
+    
+    newStar.inners = this.inners.map(rotatePoint)
+    newStar.outers = this.outers.map(rotatePoint)
+    
+    return newStar
+  }
+  
+  translate(vector: Vector): Star {
+  const newStar = new Star({ x: 0, y: 0, outerR: 1, innerR: 1 }) // dummy params
+  
+  newStar.polygon = this.polygon.translate(vector) as Polygon
+  
+  newStar.inners = this.inners.map(p => point(p.x + vector.x, p.y + vector.y))
+  newStar.outers = this.outers.map(p => point(p.x + vector.x, p.y + vector.y))
+  
+  return newStar
+}
+  
+  // Delegate common polygon methods if needed
+  get box() {
+    return this.polygon.box
+  }
+  
+  get vertices() {
+    return this.polygon.vertices
+  }
+  
+  svg(attrs?: any) {
+    return this.polygon.svg(attrs)
+  }
+}
+export function pointsToSegments(points: Point[]): Segment[] {
+  const segments: Segment[] = []
+  
+  for (let i = 0; i < points.length - 1; i++) {
+    segments.push(segment(points[i], points[i + 1]))
+  }
+  
+  return segments
+}
+
+export function star5(params: StarParams) {
+  return new Star(params)
 }
 // type Orientation = "N"
 export const createCircle = ({x,y,r}, orientation: string = "x")=>{
@@ -170,7 +316,38 @@ export const diff = (p1: Polygon, p2: Polygon)=>{
   }
   return null
 }
+export function scalePolygonAroundPoint(polygon, center, scaleFactor) {
+  // Create transformation matrix
+  const matrix = new Matrix();
+  
+  // 1. Translate so center is at origin
+  matrix.translate(-center.x, -center.y);
+  
+  // 2. Scale
+  matrix.scale(scaleFactor, scaleFactor);
+  
+  // 3. Translate back
+  matrix.translate(center.x, center.y);
+  
+  // Apply transformation
+  return polygon.transform(matrix);
+}
 
+export const unify = (p1: Polygon, p2: Polygon)=>{
+  // let polygon1 = new Polygon();
+  // polygon1.addFace([point(0,0), point(0, 50), point(50, 50), point(50, 0)]);
+
+  // let polygon2 = new Polygon();
+  // polygon2.addFace([point(25, 25), point(25, 75), point(75,75), point(75,25)]);
+  // let polygon_res = diff(polygon1, polygon2)
+  let result = martinez.union(getCoords(p1) as any, getCoords(p2) as any)
+  // return new Polygon(result)
+  if (result&&result.length>0){
+    let a = result.map(p=>getPolygonFromCoords(p))
+    if (a.length>=1 ) return a[0]
+  }
+  return null
+}
     
 export const createSegment = (center, length, angle)=>{
   let segment = new Segment(
@@ -180,6 +357,27 @@ export const createSegment = (center, length, angle)=>{
   return segment.rotate(angle, center)
 }
 // Utility: sample uniformly in a triangle (using barycentric coordinates)
+export const gridify = (p: Polygon, nRows: number, nCols: number, flatten: boolean = true) => {
+  let {xmin: x, ymin: y, width, height} = p.box;
+  
+  const dx = width / nCols;
+  const dy = height / nRows;
+  
+  const grid: Array<Array<[number,number]>> = [];
+  
+  for (let row = 0; row < nRows; row++) {
+    const rowPoints: Array<[number,number]> = [];
+    for (let col = 0; col < nCols; col++) {
+      rowPoints.push([
+        x + col * dx + dx / 2,
+        y + row * dy + dy / 2
+      ]);
+    }
+    grid.push(rowPoints);
+  }
+  
+  return flatten ? grid.flat() as [number,number][] : grid as Array<Array<[number,number]>>;
+};
 function randomPointInTriangle(a, b, c) {
   const r1 = Math.random();
   const r2 = Math.random();
@@ -200,6 +398,29 @@ export function triangleArea(a, b, c) {
   return Math.abs((a.x * (b.y - c.y) +
                    b.x * (c.y - a.y) +
                    c.x * (a.y - b.y)) / 2);
+}
+
+// treeshape is a Flatten.Polygon
+
+// Shorter version
+export function getRandomPointOnBox(box) {
+    const edge = Math.floor(Math.random() * 4);
+    const t = Math.random();
+    
+    switch(edge) {
+        case 0: return point(box.xmin + t * (box.xmax - box.xmin), box.ymin); // top
+        case 1: return point(box.xmax, box.ymin + t * (box.ymax - box.ymin)); // right
+        case 2: return point(box.xmin + t * (box.xmax - box.xmin), box.ymax); // bottom
+        case 3: return point(box.xmin, box.ymin + t * (box.ymax - box.ymin)); // left
+    }
+}
+
+
+// Get random point on a random edge of the polygon
+export function getRandomPointOnPolygonEdge(polygon) {
+    const randomEdge = [...polygon.edges][Math.floor(Math.random() * [...polygon.edges].length)];
+    const t = Math.random();
+    return randomEdge.pointAtLength(t * randomEdge.length);
 }
 
 // Main: random point inside polygon
