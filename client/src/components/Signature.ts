@@ -197,9 +197,9 @@ export class Signature extends SinglePlot {
         this.lines = [...this.lines,...polygons.map(p=>p.scale(scale,scale).translate(vector(params.x,params.y))), ]
     }
     draw(){
-      let signature = this.addLayer("signature", ()=>{
+      
         this.lines.map(line=>drawFlatten(this.p5, line))
-      }, { visible: true })
-      this.drawLayers()
+      
+      // this.drawLayers()
     }
 }

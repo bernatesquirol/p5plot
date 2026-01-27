@@ -29,6 +29,14 @@ export class Layer {
     p5plot.endSvgGroup(this.name)
     return this
   }
+  addDraw(newDraw:()=>void){
+    let oldDraw = this.drawFunc
+    let newAddedDraw = ()=>{
+      oldDraw()
+      newDraw()
+    }
+    this.drawFunc = newAddedDraw
+  }
   draw(){
     this.beginLayer()
     if (this.visible){

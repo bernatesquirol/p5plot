@@ -96,20 +96,36 @@ export abstract class Plot {
 
 export abstract class SinglePlot extends Plot {
   layers: Record<string, Layer>
-  constructor({ p5: p5, displayMode, }: {p5:p5, displayMode?: DisplayMode,}) {
+  parentPlot?: SinglePlot
+  multiPlotLayers : Record<string,SinglePlot[]>
+  constructor({ p5: p5, displayMode, parentPlot}: {p5:p5, displayMode?: DisplayMode, parentPlot?: SinglePlot}) {
     Plot.displayMode = displayMode!
     super({ p5,  })
-    this.layers = {}    
+    this.layers = {}
+    this.parentPlot = parentPlot
+    this.multiPlotLayers = {}
   }
-  addLayer(name: string, draw: () => void, attrs: { visible?: boolean } = { visible: true }) {
-    if (!this.layers[name]) {
-      let index = Object.keys(this.layers).length 
+  addLayer(name: string, draw: () => void, attrs: { visible?: boolean } = { visible: true }, plotCalling:SinglePlot|null=null) {
+    let plotToLayer = this.parentPlot||this
+    let drawNewLayer = !plotToLayer.layers[name]
+    if (drawNewLayer) {
+      let index = Object.keys(plotToLayer.layers).length 
       let newLayer = new Layer(index, name, draw, attrs)
-      this.layers[name] = newLayer
-      this.guiParam(`layer_${name}`, attrs.visible != null ? attrs.visible : true,)
+      plotToLayer.layers[name] = newLayer
+      plotToLayer.guiParam(`layer_${name}`, attrs.visible != null ? attrs.visible : true,)
     }
+    if (plotCalling){
+      if (!plotToLayer.multiPlotLayers[name]) plotToLayer.multiPlotLayers[name] = []
+      if (!plotToLayer.multiPlotLayers[name].includes(plotCalling)){
+        plotToLayer.multiPlotLayers[name].push(plotCalling)
+        if (!drawNewLayer){
+           plotToLayer.layers[name].addDraw(draw)
+        }
+      }
+    }
+    
     // UPDATE draw this.layers.draw = draw
-    return this.layers[name]
+    return plotToLayer.layers[name]
   }
   drawLayers() {
     Object.entries(this.layers).forEach(([_layerKey, l]) => {
@@ -125,8 +141,8 @@ export abstract class ScenedSinglePlot<T extends string> extends SinglePlot {
   currentScene : string
   currentSceneIndex : number
   
-  constructor({p5, scenes}){
-    super({p5})
+  constructor({p5, scenes, parentPlot}: {p5:p5,scenes:T[],parentPlot?:SinglePlot}){
+    super({p5, parentPlot})
     this.scenes = scenes
     this.currentSceneIndex = 0
     this.currentScene = this.scenes[this.currentSceneIndex]

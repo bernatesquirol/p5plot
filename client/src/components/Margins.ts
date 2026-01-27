@@ -1,7 +1,8 @@
 import { InvisibleColor } from '../utils/p5';
-import { createRect, drawFlatten } from '../utils';
+import { createRect, createSegment, createSegmentPoints, drawFlatten } from '../utils';
 import p5 from 'p5'
-import { DPI } from './Plot';
+import { DPI, Plot } from './Plot';
+import { Segment } from '@flatten-js/core';
 // "1 m 2 m 1"
 
 type RectContainer = { x: number; y: number; width: number; height: number; };
@@ -95,43 +96,72 @@ function buildGrid(container: RectContainer, xTracksStr: string, yTracksStr: str
     return { regions, namedRegions, xTracks, yTracks };
 }
 
-export class Margins {
-    p5: p5
+export class Margins extends Plot{
     namedRegions: Record<string, RectContainer[]>
     regions: RectContainer[][]
+    drawingSegments:  Segment[]
     constructor(p5: p5, params: { x?: number, y?: number, width: number, height: number, xTracks: string, yTracks: string }) {
-        this.p5 = p5
+        super({p5})
         let { x, y, width, height, xTracks, yTracks } = params
 
         let { regions, namedRegions } = buildGrid({ x:x||0, y:y||0, width, height }, xTracks, yTracks)
         this.namedRegions = namedRegions
         this.regions = regions
-        
-    }
-    draw(){
-        this.regions.forEach((columnRegion, rowIndex, array)=>{
-            // if (rowIndex===0){
-                
-            // }
-            // if (rowIndex===array.length-1){
-                
-            // }
-            columnRegion.forEach((cell, columnIndex, arrayColumn)=>{
-                this.p5.push()
-                drawFlatten(this.p5, createRect({
-                    x: cell.x,
-                    y: cell.y,
-                    w:cell.width,
-                    h:cell.height
-                }), {fill: this.p5.color(InvisibleColor), stroke: this.p5.color("red")})
-                this.p5.push()
-                // if (columnIndex===0){
-
-                // }
-                // if (columnIndex===arrayColumn.length-1){
-                    
-                // }
+        this.drawingSegments = []
+        this.regions.forEach((columnRegion, columnIndex, arrayCols)=>{
+            
+            columnRegion.forEach((cell, rowIndex, arrayRows)=>{
+                let geo;
+                let cellMidX = cell.x+cell.width/2
+                let finalX = cell.x+cell.width
+                let cellMidY = cell.y+cell.height/2
+                let finalY = cell.y+cell.height
+                let firstRow = rowIndex===0
+                let lastRow = rowIndex===arrayRows.length-1
+                let firstCol = columnIndex ===0
+                let lastCol = columnIndex ===arrayCols.length-1
+                if (firstRow  && !firstCol){
+                    geo = createSegmentPoints({
+                        x0:cell.x,
+                        y0:0,
+                        xf:cell.x,
+                        yf:cellMidY
+                    })
+                }
+                if (lastRow && !firstCol ){
+                    geo = createSegmentPoints({
+                        x0:cell.x,
+                        y0:cellMidY,
+                        xf:cell.x,
+                        yf:finalY
+                    })
+                }
+                if (firstCol && !firstRow ){
+                    geo = createSegmentPoints({
+                        x0:0,
+                        y0:cell.y,
+                        xf:cellMidX,
+                        yf:cell.y
+                    })
+                }
+                if (lastCol && !firstRow ){
+                    geo = createSegmentPoints({
+                        x0:cellMidX,
+                        y0:cell.y,
+                        xf:finalX,
+                        yf:cell.y
+                    })
+                }
+                if (geo){
+                    this.drawingSegments.push(geo)
+                }
             })
         })
+    }
+    draw(){
+        this.p5.push()
+        this.drawingSegments.map(geo=>drawFlatten(this.p5, geo))
+        this.p5.pop()
+        
     }
 }

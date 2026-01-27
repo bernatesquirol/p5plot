@@ -6,7 +6,7 @@ import d3Scale from 'd3-scale'
 import * as Matter from 'matter-js'
 import { Box, BoxType } from './Box';
 import _ from 'lodash'
-import {ScenedSinglePlot as ParentPlot } from '../../components/Plot'
+import {ScenedSinglePlot as ParentPlot, SinglePlot } from '../../components/Plot'
 import { Signature } from '../../components/Signature';
 export enum Scene {
   Start="start",
@@ -34,9 +34,9 @@ export class Plot extends ParentPlot<Scene> {
   heightTriangle:number
   maxSizeBox : number
 
-  constructor(p5: p5, { x, y, height, width, saveSVG, centerTree, angleTree }: {centerTree?:{x:number,y:number}, angleTree?:number,x?:number,y?:number, height:number, width:number, saveSVG: ()=>void}) {
+  constructor({p5: p5, parentPlot}: {p5:p5, parentPlot?: SinglePlot}, { x, y, height, width, saveSVG, centerTree, angleTree }: {centerTree?:{x:number,y:number}, angleTree?:number,x?:number,y?:number, height:number, width:number, saveSVG: ()=>void}) {
     let scenes = [Scene.Start, Scene.Explode, Scene.End]
-    super({p5, scenes})
+    super({p5, scenes, parentPlot})
     this.width = width
     this.height = height
     this.p5 = p5
@@ -172,7 +172,7 @@ export class Plot extends ParentPlot<Scene> {
         let red = new Box({
           fill: this.p5.color("white"),
           stroke: this.p5.color("black"),
-          x, y, type:isSphere?BoxType.circle:BoxType.rect, 
+          x, y, type:BoxType.circle,//isSphere?BoxType.circle:BoxType.rect, 
           anglePattern: angle,
           r,
           w,
@@ -223,10 +223,6 @@ export class Plot extends ParentPlot<Scene> {
     //   this.groundShapeWhole.attrs = { fill: this.guiColor("groundColor", p5.color("#383838")) }
     //   drawFlatten(p5, [this.groundShapeWhole])
     // }, { visible: true })
-    
-    let treeLayer = this.addLayer("tree", ()=>{
-      drawFlatten(p5, [this.treeShape.polygon])
-    }, { visible: false })
     // let redBoxesLayer = this.addLayer("redboxes", ()=>{
     //   for (var i = 0; i < this.redTreeBoxes.length; i++) {
     //     this.redTreeBoxes[i].show();
@@ -241,8 +237,7 @@ export class Plot extends ParentPlot<Scene> {
       for (var i = 0; i < this.boxes.length; i++) {
         this.boxes[i].show();
       }
-
-    })
+    }, {visible:true}, this)
     
     // let boxesToPlotLayer = this.addLayer("boxesToPlot", ()=>{
     //   for (var i = 0; i < this.boxesToPlot.length; i++) {
@@ -250,7 +245,7 @@ export class Plot extends ParentPlot<Scene> {
     //   }
     // })
     // Tests of circles and ellipses with various ellipseModes
-    this.drawLayers()
+    // this.drawLayers()
   }
 }
 // let shapesToRender: Polygon[] = [];

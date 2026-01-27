@@ -1,10 +1,10 @@
 import { Signature } from "../../components/Signature";
 import { Margins } from "../../components/Margins";
-import { DisplayMode, PAPER_SIZES, Plot } from "../../components/Plot";
+import { DisplayMode, PAPER_SIZES, Plot, SinglePlot } from "../../components/Plot";
 import { inRange } from "../../utils";
 import { Plot as StarPlot } from "../260119_star";
 import p5 from "p5"
-export class MultiStarPlot extends Plot {
+export class MultiStarPlot extends SinglePlot {
     // list of plots
     // draw function -> boxes
     // displayMode = 
@@ -12,11 +12,13 @@ export class MultiStarPlot extends Plot {
     static paper = PAPER_SIZES.A3_h
     margins: Margins
     plots: Plot[]
+    signatures: Plot[]
     constructor(p5: p5,{height, width, saveSVG, }){
         super({p5, })
         // let widthSubplot = width/cols
         // let heightSubplot = height/rows
         this.plots = []
+        this.signatures = []
         let paddingLateral = `0.5cm`
         let firmaSize = `0.8cm`
         this.margins = new Margins(p5,{
@@ -34,7 +36,7 @@ export class MultiStarPlot extends Plot {
                 let selectedCols = [1,2,3,4]
                 if (selectedRows.includes(rowIndex) && selectedCols.includes(colIndex)){
                     // debugger
-                let plot = new StarPlot(p5,{
+                let plot = new StarPlot({p5,parentPlot:this},{
                     x: cell.x,
                     y: cell.y,
                     centerTree: {x: cell.width/2, y: cell.height/2},
@@ -54,7 +56,7 @@ export class MultiStarPlot extends Plot {
                         width: cell.width*0.3,
                         height: cell.height,
                     })
-                    this.plots.push(signature)
+                    this.signatures.push(signature)
                 }
             })
         })
@@ -66,9 +68,15 @@ export class MultiStarPlot extends Plot {
         
     }
     draw(){
+        let margins = this.addLayer("margins", ()=>{
+            this.margins.draw()
+        }, { visible: true })
         this.plots.forEach(plot=>{
             plot.draw()
         })
-        this.margins.draw()
+        let signature = this.addLayer("signature", ()=>{
+            this.signatures.map(sign=>sign.draw())
+        }, { visible: true })
+        this.drawLayers()
     }
 }

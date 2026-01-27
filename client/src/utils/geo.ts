@@ -194,6 +194,10 @@ export const createRect = ({x,y,w,h}, orientation: string="NO")=>{
   }
   return createRectCentroid({x:middleX,y:middleY,w,h})
 }
+export const createSegmentPoints = ({x0,y0,xf,yf})=>{
+  let s = new Segment(new Point(x0, y0), new Point(xf, yf))
+  return s
+}
 export const createRectCentroid = ({x,y,w,h})=>{
   let p = new Polygon()
   p.addFace([
