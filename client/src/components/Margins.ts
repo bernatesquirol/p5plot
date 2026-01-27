@@ -2,7 +2,7 @@ import { InvisibleColor } from '../utils/p5';
 import { createRect, createSegment, createSegmentPoints, drawFlatten } from '../utils';
 import p5 from 'p5'
 import { DPI, Plot } from './Plot';
-import { Segment } from '@flatten-js/core';
+import { Polygon, Segment } from '@flatten-js/core';
 // "1 m 2 m 1"
 
 type RectContainer = { x: number; y: number; width: number; height: number; };
@@ -99,7 +99,7 @@ function buildGrid(container: RectContainer, xTracksStr: string, yTracksStr: str
 export class Margins extends Plot{
     namedRegions: Record<string, RectContainer[]>
     regions: RectContainer[][]
-    drawingSegments:  Segment[]
+    drawingSegments:  (Segment|Polygon)[]
     constructor(p5: p5, params: { x?: number, y?: number, width: number, height: number, xTracks: string, yTracks: string }) {
         super({p5})
         let { x, y, width, height, xTracks, yTracks } = params
@@ -155,7 +155,15 @@ export class Margins extends Plot{
                 if (geo){
                     this.drawingSegments.push(geo)
                 }
+                // this.drawingSegments.push(createRect({
+                //     x: cell.x,
+                //     y: cell.y,
+                //     w:cell.width,
+                //     h:cell.height
+                // }))
+                
             })
+            
         })
     }
     draw(){

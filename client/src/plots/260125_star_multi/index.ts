@@ -51,9 +51,9 @@ export class MultiStarPlot extends SinglePlot {
                 }
                 if (selectedRows.includes(rowIndex-1) && selectedCols.includes(colIndex)){
                     let signature = new Signature(p5,{
-                        x: cell.x+cell.width*0.5,
+                        x: cell.x+cell.width*0.42,
                         y: cell.y+cell.height*0.8,
-                        width: cell.width*0.3,
+                        width: cell.width*0.35,
                         height: cell.height,
                     })
                     this.signatures.push(signature)

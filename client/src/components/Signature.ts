@@ -1,5 +1,5 @@
 import p5 from "p5";
-import firmesTxt from '../assets/firmes4.svg?raw'
+import firmesTxt from '../assets/firmes5.svg?raw'
 import { addCallback, InvisibleColor } from "../utils/p5";
 import { point, Point, Polygon, Segment, vector, BooleanOperations } from "@flatten-js/core";
 import earcut from 'earcut'
