@@ -7,7 +7,7 @@ import * as Matter from 'matter-js'
 import { Box, BoxType } from './Box';
 import _ from 'lodash'
 import {ScenedSinglePlot as ParentPlot, SinglePlot } from '../../components/Plot'
-import { Signature } from '../../components/Signature';
+import { Signature } from '../../components/SignaturePlot';
 export enum Scene {
   Start="start",
   Explode="explode",

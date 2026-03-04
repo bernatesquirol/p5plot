@@ -1,6 +1,39 @@
 
-import { Edge, Point, Polygon } from '@flatten-js/core';
+import { Circle, Edge, Point, Polygon } from '@flatten-js/core';
 import *  as Matter from 'matter-js'
+export const bindHollowCircle = (
+  world: Matter.World, 
+  circleBelow: Circle,
+  segments = 32, 
+  thickness = 10
+) => {
+  let bodies: Matter.Body[] = [];
+  const angleStep = (Math.PI * 2) / segments;
+  let center = circleBelow.pc
+  let radius = circleBelow.r
+  for (let i = 0; i < segments; i++) {
+    // Calculate start and end points of the segment
+    const angle1 = i * angleStep;
+    const angle2 = (i + 1) * angleStep;
+
+    const start = new Point(
+      center.x + radius * Math.cos(angle1),
+      center.y + radius * Math.sin(angle1)
+    );
+    const end = new Point(
+     center.x + radius * Math.cos(angle2),
+      center.y + radius * Math.sin(angle2)
+    );
+
+    // Reuse your existing edgeToBoundary logic
+    let wall = edgeToBoundary(start, end, thickness);
+    
+    Matter.World.add(world, wall);
+    bodies.push(wall);
+  }
+
+  return bodies;
+};
 export const bindHollowBody = (world: Matter.World, polygon:Polygon, thickness = 10)=>{
     let b: Matter.Body[] = []
     polygon.edges.forEach((e:Edge)=>{

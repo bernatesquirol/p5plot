@@ -442,8 +442,35 @@ export function randomPointInPolygon(polygon) {
     }
   }
 }
+export const newArray = (n)=>{
+  return (new Array(n)).fill(1)
+}
+export const diffXY = (a:{x:number, y:number},b:{x:number, y:number} )=>{
+  return new Vector(b.x-a.x, b.y-a.y)
+}
+export const unitXY = (v: {x: number, y: number}) => {
+  const magnitude = Math.sqrt(v.x * v.x + v.y * v.y);
+  
+  // Guard against division by zero for zero-length vectors
+  if (magnitude === 0) {
+    return new Vector(0, 0);
+  }
 
-
+  return new Vector(v.x / magnitude, v.y / magnitude);
+}
+export const iterTwo = (list) => {
+  const result = [];
+  for (let i = 0; i < list.length - 1; i++) {
+    result.push([list[i], list[i + 1]]);
+  }
+  return result;
+}
+export const multXY = (a:{x:number, y:number}, b: number|{x:number, y:number})=>{
+  if (typeof b === "number"){
+    return new Vector(a.x*b, a.y*b)
+  }
+  return new Vector(a.x*b.x, a.y*b.y)
+}
 // -------------------
 // Example usage:
 // -------------------

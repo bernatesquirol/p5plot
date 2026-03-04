@@ -33,7 +33,7 @@ export class Box {
     this.type = type
     
     var options = {
-      friction:0.6,
+      friction:0,
       restitution: 0,
       angle: p5.PI,
       isStatic: isStatic??false

@@ -1,9 +1,9 @@
 import p5 from "p5";
-import firmesTxt from '../assets/firmes4.svg?raw'
+
 import { addCallback, InvisibleColor } from "../utils/p5";
-import { point, Point, Polygon, Segment, vector, BooleanOperations } from "@flatten-js/core";
+import { point, Point, Polygon, Segment, vector, BooleanOperations, Line, Multiline } from "@flatten-js/core";
 import earcut from 'earcut'
-import { createRect, drawFlatten, getCoords, getPolygonFromCoords, getRandomFromList, pointsToSegments, unify } from "../utils";
+import { createRect, drawFlatten, getCoords, getPolygonFromCoords, getRandomFromList, iterTwo, pointsToSegments, unify } from "../utils";
 // import Flatten from "@flatten-js/core";
 import * as martinez from 'martinez-polygon-clipping';
 import { Plot, SinglePlot } from "./Plot";
@@ -58,33 +58,35 @@ function getSvgPaths(svgText: string): SVGPathElement[] {
   return Array.from(doc.querySelectorAll('path'))
 }
 
-export class Signature  {
+export class Svg  {
     p5: p5
-    lines: Polygon[]
+    lines: Multiline[]
     // polygon: Polygon
-    constructor( params: { x?: number, y?: number, width: number, height: number, }, {p5}:{p5: p5,}){
-        let paths = getSvgPaths(firmesTxt)
-        this.p5 = p5
+    constructor( {rawSvg, x, y,scaleRatio}:{ rawSvg: string, x?: number, y?: number, width: number, height: number, scaleRatio:number }, {p5:p5}){
+        this.p5=p5
+        let paths = getSvgPaths(rawSvg)
+        
         this.lines=[]
         let pathsSelected = paths.filter((p,i)=>i!=3)
-        let path = getRandomFromList(pathsSelected)
+        for (let path of pathsSelected){
+          let subPaths = processSVG(path)
+          // debugger
+          let lines = subPaths.map((p:  any)=>iterTwo(p).map(([a,b])=>new Segment(a,b))).flat().map(s=>s.scale(scaleRatio, scaleRatio).translate(x,y))
+          // let megaPolygon = lines.reduce((acc,item)=>acc.union(l))
+          // let scaleX = width/megaPolygon.box.width
+          // let scaleY = height/megaPolygon.box.height
+          // let scale = Math.min(scaleX, scaleY)
+          
+          this.lines = [...this.lines,...(lines as any)]
+        }
+        // let path = getRandomFromList(pathsSelected)
         // for (let path of pathsSelected){
-        let subPaths = processSVG(path)
-        let polygons = subPaths.map(p=>new Polygon(p))
-        let megaPolygon = polygons.reduce((acc,item)=>acc?unify(acc,item!):item)
-        let scaleX = params.width/megaPolygon.box.width
-        let scaleY = params.height/megaPolygon.box.height
-        let scale = Math.min(scaleX, scaleY)
-        // let rect  = createRect({
-        //                     x: params.x,
-        //                     y: params.y,
-        //                     w:params.width,
-        //                     h:params.height
-        //                 })
-        this.lines = [...this.lines,...polygons.map(p=>p.scale(scale,scale).translate(vector(params.x,params.y))), ]
-    }
+      
+      }
     show(){
+      
         this.lines.map(line=>drawFlatten(this.p5, line))
+      
       // this.drawLayers()
     }
 }

@@ -9,6 +9,8 @@ export enum DisplayMode {
 }
 export const DPI = 100;
 export const PAPER_SIZES = {
+  A5_v: { w: 5.83 * DPI, h: 8.27 * DPI },
+  A5_h: { w: 8.27 * DPI, h: 5.83 * DPI },
   A4_v: { w: 8.27 * DPI, h: 11.69 * DPI },
   A4_h: { w: 11.69 * DPI, h: 8.27 * DPI, },
   A3_v: { w: 11.69 * DPI, h: 16.54 * DPI },

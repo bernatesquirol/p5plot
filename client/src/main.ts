@@ -5,7 +5,7 @@ import p5plot from 'p5.plotsvg';
 
 
 import './style.css';
-import { MultiStarPlot as Plot} from './plots/260125_star_multi';
+import { Plot} from './plots/260225_cycles';
 import { DisplayMode, DPI, PAPER_SIZES, Plot as PlotType } from './components/Plot';
 const PlotSettings = Plot
 
@@ -62,7 +62,7 @@ new p5((p5Instance: p5) => {
     p5plot.setSvgDefaultStrokeColor('black'); 
     p5plot.setSvgDefaultStrokeWeight(1); 
     p5plot.setSvgFlattenTransforms(false); // if true: larger files + greater fidelity to original
-    plot = new Plot(p5Instance, {
+    plot = new Plot({p5: p5Instance}, {
       x:0,
       y:0,
       height: height!,

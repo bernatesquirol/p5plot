@@ -1,4 +1,4 @@
-import { Signature } from "../../components/Signature";
+import { Signature } from "../../components/SignaturePlot";
 import { Margins } from "../../components/Margins";
 import { DisplayMode, PAPER_SIZES, Plot, SinglePlot } from "../../components/Plot";
 import { inRange } from "../../utils";
