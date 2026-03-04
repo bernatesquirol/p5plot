@@ -58,9 +58,9 @@ export class Plot extends ParentPlot<Scene> {
     // let { w:wTree, h:hTree } = holdRatio({w:width*0.7, h: height*0.7 },"2:4")
 
     // let widthTriangle = width*0.4
-    let boundsShape = createRect({ y: 0, x: 0, w: width, h: height }, "NO")
+    let boundsShape = createRect({ y: y, x: x, w: width, h: height }, "NO")
     bindHollowBody(world, boundsShape)
-    let outerDiameter = Math.min(width*0.7, height*0.7)
+    let outerDiameter = Math.min(width, height)
     this.heightTriangle = outerDiameter
     let outerR = outerDiameter/2
     this.maxSizeBox = outerDiameter*0.005
@@ -154,13 +154,15 @@ export class Plot extends ParentPlot<Scene> {
     
     let numSpheres = probability
     let points = gridify(this.treeShape.polygon, 20, 20, true)
+    let stars = 0
     points.forEach(gridPoint=>{
       if (this.treeShape.polygon.contains(point(...gridPoint))){
+        stars += 1
         let [x,y] = gridPoint
         let isSphere = Math.random()<numSpheres
         let c = centroid(this.treeShape.polygon)
         let angle = tangentAngle(point(x,y), c)
-        let fieldSize = gaussianField(this.treeShape.box.center, this.treeShape.box.height*2)
+        let fieldSize = gaussianField(this.treeShape.box.center, this.treeShape.box.height*1.5)
         // randomPointInPolygon
         // let fieldSize = gaussianField(this.treeShape.box.center, this.treeShape.box.height*1.3)
         let r = 1.1*randomBetween(7, 10)*fieldSize(x,y)*this.maxSizeBox/2
@@ -168,7 +170,7 @@ export class Plot extends ParentPlot<Scene> {
         let w = 2*1.1*randomBetween(7, 10)*fieldSize(x,y)*this.maxSizeBox/2
         // let fieldBodyBuffer = gaussianField(getRandomPointOnPolygonEdge(this.treeShape)!, this.treeShape.box.height/5)
         let outer = getRandomFromList(this.treeShape.outers)
-        let fieldLineWidth = gaussianField(this.treeShape.box.center, this.treeShape.box.height/3)
+        let fieldLineWidth = gaussianField(this.treeShape.box.center, this.treeShape.box.height*0.3)
         let red = new Box({
           fill: this.p5.color("white"),
           stroke: this.p5.color("black"),
@@ -177,14 +179,15 @@ export class Plot extends ParentPlot<Scene> {
           r,
           w,
           h,
-          bodyBuffer: 1.2,//+1.5*fieldBodyBuffer(x,y,)
-          textureWidth: 2.5-fieldLineWidth(x,y)
+          bodyBuffer: 1.3,//+1.5*fieldBodyBuffer(x,y,)
+          textureWidth: 1.1*fieldLineWidth(x,y)+2.7//3.5-fieldLineWidth(x,y)
         }, { world: this.engine.world, p5: this.p5 })
         // forceTowardsPoint(red.body,c, 0.0005)
         this.boxes.push(red)
       }
       
     })
+    console.log(stars)
     // this.boxesToPlot = [...this.boxesToPlot, ]
     // this.boxesToPlot = [...this.boxesToPlot, new Box({
     //     fill: this.p5.color("white"),

@@ -44,12 +44,13 @@ export class Star {
 
     // Start pointing up
     const startAngle = -Math.PI / 2
-
+    const radiusVariation = (1 - outerVariation) + Math.random() * (2 * outerVariation)
     for (let i = 0; i < tips; i++) {
       // Outer point (tip) - randomize within outer range
       const outerAngleOffset = (Math.random() - 0.5) * angleVariation
       const outerAngle = startAngle + i * baseStep + outerAngleOffset
-      const outerRadius = outerR * ((1 - outerVariation) + Math.random() * (2 * outerVariation))
+      const outerRadius = outerR * radiusVariation
+
       let outer = point(
         x + Math.cos(outerAngle) * outerRadius,
         y + Math.sin(outerAngle) * outerRadius
@@ -60,7 +61,8 @@ export class Star {
       // Inner point (valley) - randomize within inner range
       const innerAngleOffset = (Math.random() - 0.5) * angleVariation
       const innerAngle = startAngle + i * baseStep + baseStep / 2 + innerAngleOffset
-      const innerRadius = innerR * ((1 - innerVariation) + Math.random() * (2 * innerVariation))
+      const innerRadius = innerR * radiusVariation
+
       let inner = point(
         x + Math.cos(innerAngle) * innerRadius,
         y + Math.sin(innerAngle) * innerRadius
