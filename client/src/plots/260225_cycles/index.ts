@@ -80,7 +80,7 @@ export class Wheel {
     let v = vector( totalV.x-unitScaledV.x,totalV.y-unitScaledV.y, )
     let smallCircle = createCircle({x:pos.x,y:pos.y,r:this.smallR})
     let texture = this.getTexture(bigCircle, smallCircle).map(l=>l.rotate(angle, new Point(pos.x,pos.y)))
-    let potenz = 0.012
+    let potenz = 0.020
     let ecos = newArray(2).map((_c, i)=>createCircle({x:bigCircle.pc.x, y:bigCircle.pc.y, r:bigCircle.r}).translate(multXY(v,-potenz*(i+1)))).reverse()
     let ecosTexture = newArray(2).map((_c, i)=>texture.map(t=>segment(t.start, t.end).translate(multXY(v,-potenz*(i+1))))).reverse().flat()
     drawFlatten(this.p5, [...ecos,  ...texture, ...ecosTexture, bigCircle] )
@@ -105,7 +105,7 @@ export class Plot extends ParentPlot<Scene> {
   otherGeos : any[]
   otherPlots : any[]
   static displayMode = DisplayMode.PRINT;
-  static paper = PAPER_SIZES.A5_h
+  static paper = PAPER_SIZES.IKEA_h
   constructor({p5: p5, parentPlot}: {p5:p5, parentPlot?: SinglePlot}, { x, y, height, width, saveSVG,  }: {x?:number,y?:number, height:number, width:number, saveSVG: ()=>void}) {
     
     let scenes = [Scene.Start, Scene.Explode, Scene.End]
@@ -126,7 +126,7 @@ export class Plot extends ParentPlot<Scene> {
     let totalHeight = height*0.9-2*buffer
     let heightUp = totalHeight//*0.7
     let boundsShapeUp = createRect({ y: buffer, x: buffer, w: width-buffer*2, h: heightUp }, "NO")
-    let boundsShapeDown = createRect({ y:heightUp + bufferMiddle/2, x: buffer, w: width-buffer*2, h: totalHeight-heightUp }, "NO")
+    // let boundsShapeDown = createRect({ y:heightUp + bufferMiddle/2, x: buffer, w: width-buffer*2, h: totalHeight-heightUp }, "NO")
     bindHollowBody(worldUp, boundsShapeUp)
     // bindHollowBody(worldDown, boundsShapeDown)
     
@@ -135,8 +135,8 @@ export class Plot extends ParentPlot<Scene> {
     //   width, height,x,y,
     //   margin: 5,
     // })
-    let universeCenter = {x:width/2,y:1.25*height/2, r: width/6}
-    let size = 0.8*2*universeCenter.r
+    let universeCenter = {x:width/2,y:1.25*height/2, r: width/7}
+    let size = 0.6*2*universeCenter.r
     let scaleSignature = 0.05
     let signature = new Signature({
           x: width*0.9,
@@ -144,13 +144,14 @@ export class Plot extends ParentPlot<Scene> {
           width: height*scaleSignature,
           height: height*scaleSignature,
       }, {p5})
+    
     let svg = new Svg({
-      x:universeCenter.x-size/2, 
-      y: universeCenter.y-size/2, 
+      x:universeCenter.x-size*.7, 
+      y: universeCenter.y-size*0.7, 
       rawSvg: hanjian, 
       width:size , 
       height: size,
-      scaleRatio: 0.6
+      scaleRatio: 0.4
     }, {p5: this.p5})
     // debugger
     // let polygon = svg.lines[0]
@@ -160,12 +161,13 @@ export class Plot extends ParentPlot<Scene> {
     bindHollowCircle(worldUp, circleBelow as any)
     this.guiButton("saveSVG", saveSVG, true)
     let outCircleUp = diff(boundsShapeUp, poligonizeCircle(circleBelow))!
-    let outCircleDown = diff(boundsShapeDown, poligonizeCircle(circleBelow))!
+    // let outCircleDown = diff(boundsShapeDown, poligonizeCircle(circleBelow))!
     
     this.bikes = (new Array(60)).fill(1).map(p=>{
       let wheelCenter = randomPointInPolygon(outCircleUp)
-      let rWheel = 25
-      let spikes = 7
+      let rWheel = 16
+
+      let spikes = 8
       let circle = new Wheel({x:wheelCenter.x,y:wheelCenter.y, r:rWheel, smallR:rWheel*0.3, spikes, universeCenter },{p5, world: worldUp})
       return circle
     })
