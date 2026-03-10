@@ -44,16 +44,19 @@ export class Wheel {
   smallR: number
   spikes : number
   universeCenter: {x:number, y:number, r:number}
+  main: any[]
+  ecos: any[]
   constructor ({x,y,r, smallR, spikes, universeCenter}, {p5, world}){
     this.p5 = p5
     this.r = r
     this.smallR = smallR
     this.spikes = spikes
     this.universeCenter = universeCenter
-    
+    this.ecos = []
+    this.main = []
     var options = {
-      friction:0.1,
-      restitution: 0,
+      friction:0.01,
+      restitution: 0.3,
       angle: p5.PI,
       isStatic: false
     }
@@ -68,11 +71,9 @@ export class Wheel {
     let lines4 = drawTangentLines(bigCircle, smallCircle, this.spikes, 0.5, -1)
     return [...lines1, ...lines2, ...lines3, ...lines4]
   }
-  show(){
+  compute(){
     var pos = this.body.position;
     var angle = this.body.angle;
-    this.p5.push();
-    this.p5.fill(255,255,255,0);
     let bigCircle = createCircle({x:pos.x,y:pos.y,r:this.r});
     pos
     let totalV = diffXY(pos, this.universeCenter)
@@ -80,10 +81,22 @@ export class Wheel {
     let v = vector( totalV.x-unitScaledV.x,totalV.y-unitScaledV.y, )
     let smallCircle = createCircle({x:pos.x,y:pos.y,r:this.smallR})
     let texture = this.getTexture(bigCircle, smallCircle).map(l=>l.rotate(angle, new Point(pos.x,pos.y)))
-    let potenz = 0.020
-    let ecos = newArray(2).map((_c, i)=>createCircle({x:bigCircle.pc.x, y:bigCircle.pc.y, r:bigCircle.r}).translate(multXY(v,-potenz*(i+1)))).reverse()
-    let ecosTexture = newArray(2).map((_c, i)=>texture.map(t=>segment(t.start, t.end).translate(multXY(v,-potenz*(i+1))))).reverse().flat()
-    drawFlatten(this.p5, [...ecos,  ...texture, ...ecosTexture, bigCircle] )
+    let potenz = 0.030
+    let ecos = newArray(1).map((_c, i)=>createCircle({x:bigCircle.pc.x, y:bigCircle.pc.y, r:bigCircle.r}).translate(multXY(v,-potenz*(i+1)))).reverse()
+    let ecosTexture = newArray(1).map((_c, i)=>texture.map(t=>segment(t.start, t.end).translate(multXY(v,-potenz*(i+1))))).reverse().flat()
+    this.main = [ ...texture,  bigCircle] 
+    this.ecos = [...ecos, ...ecosTexture]
+  }
+  show(){
+    this.p5.push();
+    this.p5.fill(255,255,255,0);
+    drawFlatten(this.p5, this.main)
+    this.p5.pop()
+  }
+  showEco(){
+    this.p5.push();
+    this.p5.fill(255,255,255,0);
+    drawFlatten(this.p5, this.ecos)
     this.p5.pop()
   }
 }
@@ -167,7 +180,7 @@ export class Plot extends ParentPlot<Scene> {
       let wheelCenter = randomPointInPolygon(outCircleUp)
       let rWheel = 16
 
-      let spikes = 8
+      let spikes = 8 
       let circle = new Wheel({x:wheelCenter.x,y:wheelCenter.y, r:rWheel, smallR:rWheel*0.3, spikes, universeCenter },{p5, world: worldUp})
       return circle
     })
@@ -213,8 +226,16 @@ export class Plot extends ParentPlot<Scene> {
     let xinoLayer = this.addLayer("xino", ()=>{
       this.otherPlots.map(p=>p.show())
     }, {visible:true} )
+    for (var i = 0; i < this.bikes.length; i++) {
+        this.bikes[i].compute();
+    }
+    let ecosLayer = this.addLayer("ecos", ()=>{
+      for (var i = 0; i < this.bikes.length; i++) {
+        this.bikes[i].showEco();
+      }
+    }, {visible:true} )
     let boxesLayer = this.addLayer("boxes", ()=>{
-      drawFlatten(p5, this.otherGeos)
+      // drawFlatten(p5, this.otherGeos)
       for (var i = 0; i < this.bikes.length; i++) {
         this.bikes[i].show();
       }
