@@ -170,6 +170,33 @@ function getSvgPaths(svgText: string): SVGPathElement[] {
 //   return result;
 // }
 
+function dashPolygon(poly: Polygon, dashLen: number, gapLen: number): Segment[] {
+    const result: Segment[] = []
+    const period = dashLen + gapLen
+    let progress = 0
+    for (const face of poly.faces) {
+        for (const edge of face) {
+            const s = edge.shape as Segment
+            if (!s || !s.length) continue
+            const edgeStart = progress
+            const edgeEnd = progress + s.length
+            const firstDash = Math.floor(edgeStart / period)
+            const lastDash = Math.ceil(edgeEnd / period)
+            for (let d = firstDash; d <= lastDash; d++) {
+                const lo = Math.max(d * period, edgeStart) - edgeStart
+                const hi = Math.min(d * period + dashLen, edgeEnd) - edgeStart
+                if (hi > lo + 0.1) {
+                    const p1 = s.pointAtLength(lo)
+                    const p2 = s.pointAtLength(hi)
+                    if (p1 && p2) result.push(new Segment(p1, p2))
+                }
+            }
+            progress = edgeEnd
+        }
+    }
+    return result
+}
+
 export class Signature extends SinglePlot {
     
     lines: Polygon[]
@@ -188,18 +215,22 @@ export class Signature extends SinglePlot {
         let scaleX = params.width/megaPolygon.box.width
         let scaleY = params.height/megaPolygon.box.height
         let scale = Math.min(scaleX, scaleY)
-        // let rect  = createRect({
-        //                     x: params.x,
-        //                     y: params.y,
-        //                     w:params.width,
-        //                     h:params.height
-        //                 })
-        this.lines = [...this.lines,...polygons.map(p=>p.scale(scale,scale).translate(vector(params.x,params.y))), ]
+        const px = params.x || 0
+        const py = params.y || 0
+        const rotCenter = point(
+            px + scale * megaPolygon.box.center.x,
+            py + scale * megaPolygon.box.center.y
+        )
+        this.lines = [...this.lines,...polygons.map(p=>p.scale(scale,scale).translate(vector(px,py)).rotate(-Math.PI/2, rotCenter)), ]
     }
     draw(){
-      
+            
         this.lines.map(line=>drawFlatten(this.p5, line))
       
-      // this.drawLayers()
+      
+        // this.lines.forEach(line => {
+        //     const dashed = dashPolygon(line, 4, 3)
+        //     drawFlatten(this.p5, dashed)
+        // })
     }
 }

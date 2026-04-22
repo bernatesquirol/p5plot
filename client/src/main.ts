@@ -5,7 +5,7 @@ import p5plot from 'p5.plotsvg';
 
 
 import './style.css';
-import { Plot} from './plots/260225_cycles';
+import { StJordiPlot as Plot} from './plots/260420_stjordi';
 import { DisplayMode, DPI, PAPER_SIZES, Plot as PlotType } from './components/Plot';
 const PlotSettings = Plot
 

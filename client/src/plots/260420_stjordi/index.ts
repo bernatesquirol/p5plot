@@ -1,0 +1,83 @@
+import { Signature } from "../../components/SignaturePlot";
+import { Margins } from "../../components/Margins";
+import { DisplayMode, PAPER_SIZES, Plot, SinglePlot } from "../../components/Plot";
+import { inRange } from "../../utils";
+import { Plot as Rose } from "./Rose";
+import p5 from "p5"
+export class StJordiPlot extends SinglePlot {
+    // list of plots
+    // draw function -> boxes
+    // displayMode = 
+    static displayMode = DisplayMode.PRINT;
+    static paper = PAPER_SIZES.A3_h
+    margins: Margins
+    plots: Plot[]
+    signatures: Plot[]
+    constructor({p5}: {p5: p5},{height, width, saveSVG, }){
+        super({p5, })
+        // let widthSubplot = width/cols
+        // let heightSubplot = height/rows
+        this.plots = []
+        this.signatures = []
+        let paddingLateral = `0.5cm`
+        let firmaSize = `0.6cm`
+        this.margins = new Margins(p5,{
+            x:0, 
+            y:0, 
+            width, 
+            height, 
+            xTracks:`${paddingLateral} 1 ${firmaSize} 1 ${firmaSize} 1 ${firmaSize} 1 ${firmaSize} ${paddingLateral}`, 
+            yTracks:`${paddingLateral} 1 1 1 1 1 ${paddingLateral}`
+        })
+        // debugger
+        this.margins.regions.forEach((row, rowIndex)=>{
+            row.forEach((cell, colIndex)=>{
+                let selectedRows = [1,3,5,7]
+                let selectedCols = [1,2,3,4, 5]
+                if (selectedRows.includes(rowIndex) && selectedCols.includes(colIndex)){
+                    // debugger
+                let plot = new Rose({p5,parentPlot:this},{
+                    x: cell.x,
+                    y: cell.y,
+                    offsetRose: {x:-cell.width/5},
+                    // centerTree: {x: cell.width/2, y: cell.height/2},
+                    angleTree: -Math.PI/2,
+                    width: cell.width,
+                    height: cell.height,
+                    saveSVG
+                });
+                // plot.randomize(0.2)
+                plot.gui.close()
+                this.plots.push(plot)
+                }
+                if (selectedRows.includes(rowIndex-1) && selectedCols.includes(colIndex)){
+                    let signature = new Signature(p5,{
+                        x: cell.x+cell.width*0.42,
+                        y: cell.y+cell.height*0.15,
+                        width: cell.width*0.35,
+                        height: cell.height,
+                    })
+                    this.signatures.push(signature)
+                }
+            })
+        })
+        // inRange(cols).forEach(c=>{
+        //     inRange(rows).forEach(r=>{
+                
+        //     })
+        // })
+        
+    }
+    draw(){
+        let margins = this.addLayer("margins", ()=>{
+            this.margins.draw()
+        }, { visible: true })
+        this.plots.forEach(plot=>{
+            plot.draw()
+        })
+        let signature = this.addLayer("signature", ()=>{
+            this.signatures.map(sign=>sign.draw())
+        }, { visible: true })
+        this.drawLayers()
+    }
+}
