@@ -97,7 +97,7 @@ export class Plot extends ParentPlot {
         this.p5.push()
         this.p5.noFill()
         this.p5.stroke(0)
-        drawFlatten(this.p5, [ ...this.segs.map(s=>toDisc(s, 3, 2)).flat()]) //
+        drawFlatten(this.p5, [ ...this.segs.map(s=>toDisc(s, 2, 2)).flat()]) //
         this.p5.pop()
       }
     }]
