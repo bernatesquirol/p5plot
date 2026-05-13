@@ -120,7 +120,7 @@ export class Margins extends Plot{
                 let lastRow = rowIndex===arrayRows.length-1
                 let firstCol = columnIndex ===0
                 let lastCol = columnIndex ===arrayCols.length-1
-                if (firstRow  && !firstCol){
+                if (firstRow  && firstCol){
                     geo = createSegmentPoints({
                         x0:cell.x,
                         y0:0,
@@ -128,7 +128,7 @@ export class Margins extends Plot{
                         yf:cellMidY
                     })
                 }
-                if (lastRow && !firstCol ){
+                if (lastRow && firstCol ){
                     geo = createSegmentPoints({
                         x0:cell.x,
                         y0:cellMidY,
@@ -136,7 +136,7 @@ export class Margins extends Plot{
                         yf:finalY
                     })
                 }
-                if (firstCol && !firstRow ){
+                if (firstCol && firstRow ){
                     geo = createSegmentPoints({
                         x0:0,
                         y0:cell.y,
@@ -144,7 +144,7 @@ export class Margins extends Plot{
                         yf:cell.y
                     })
                 }
-                if (lastCol && !firstRow ){
+                if (lastCol && firstRow ){
                     geo = createSegmentPoints({
                         x0:cellMidX,
                         y0:cell.y,

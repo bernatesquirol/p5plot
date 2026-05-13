@@ -60,9 +60,9 @@ export class Plot extends SinglePlot {
     this.cell = new RectContainer(region)
 
     this.smallSpines = [
-      { center: { x: 0.7, y: 0.1 }, length: 0.10, angle: 0.1, n: 30, frequency: 2,   heightAbove: 3, heightBelow: 4, offsetC: 2, phase: 0   },
-      { center: { x: 0.3, y: 0.1 }, length: 0.20, angle: -0.15, n: 40, frequency: 2.5,   heightAbove: 3, heightBelow: 6, offsetC: 2, phase: 0   },
-      { center: { x: 0.51, y: 0.8 }, length: 0.15, angle: 0.35, n: 50, frequency: 3,  heightAbove: 6, heightBelow: 3,  offsetC: 2, phase: 0.3 },
+      { center: { x: 0.7, y: 0.1 }, length: 0.10, angle: 0.1, n: 30, frequency: 2,   heightAbove: 5, heightBelow: 6, offsetC: 2, phase: 0   },
+      { center: { x: 0.3, y: 0.1 }, length: 0.20, angle: -0.15, n: 40, frequency: 2.5,   heightAbove: 6, heightBelow: 8, offsetC: 2, phase: 0   },
+      { center: { x: 0.51, y: 0.8 }, length: 0.15, angle: 0.35, n: 50, frequency: 3,  heightAbove: 8, heightBelow: 5,  offsetC: 2, phase: 0.3 },
     ]
 
     const scaleSignature = 0.05
