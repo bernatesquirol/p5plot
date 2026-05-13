@@ -28,18 +28,12 @@ export abstract class Plot {
   funcsCalled: Record<string,boolean>
   static displayMode: DisplayMode
   static paper?: Paper
-  constructor({ p5, }:{p5:p5}) {
-    this.gui = new GUI();
+  constructor({ p5, useGui = true }:{p5:p5, useGui?: boolean}) {
+    this.gui = new GUI({ autoPlace: useGui });
     this.settings = {}
     this.p5 = p5
     this.funcsCalled={}
-    // this.displayMode = displayMode||DisplayMode.FULLSCREEN
-    // if (displayMode === DisplayMode.PRINT){
-    //   this.paper = PAPER_SIZES[paperSize!]!
-    // }
-    if (isProd()) {
-      this.gui.close()
-    }
+    this.gui.close()
   }
   getFunc(key){
     return this.funcsCalled[key]

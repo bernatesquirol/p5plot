@@ -35,7 +35,7 @@ function buildGrid(container: RectContainer, xTracksStr: string, yTracksStr: str
             }
 
             const t: Track = { sizeSpec, name };
-            if (sizeSpec.endsWith("cm")) t.fixed = parseFloat(sizeSpec) * DPI; //37.795; // cm → px
+            if (sizeSpec.endsWith("cm")) t.fixed = parseFloat(sizeSpec) * (DPI / 2.54); // cm → px (1 inch = 2.54 cm)
             else if (sizeSpec.endsWith("px")) t.fixed = parseFloat(sizeSpec);
             else if (sizeSpec.endsWith("fr")) t.flex = parseFloat(sizeSpec) || 1;
             else t.flex = parseFloat(sizeSpec) || 1;
@@ -101,7 +101,7 @@ export class Margins extends Plot{
     regions: RectContainer[][]
     drawingSegments:  (Segment|Polygon)[]
     constructor(p5: p5, params: { x?: number, y?: number, width: number, height: number, xTracks: string, yTracks: string }) {
-        super({p5})
+        super({p5, useGui: false})
         let { x, y, width, height, xTracks, yTracks } = params
 
         let { regions, namedRegions } = buildGrid({ x:x||0, y:y||0, width, height }, xTracks, yTracks)
