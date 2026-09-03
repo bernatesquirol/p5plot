@@ -10,9 +10,9 @@ const MAX_BIRDS = 24
 /** The flock as it was hand-tuned: one big doubled bird plus three small ones. */
 const FLOCK: Partial<BirdSpec>[] = [
   { x: 0.50, y: 0.50, length: 1.00, angle: 0.00, n: 200, frequency: 2.5, heightAbove: 52, heightBelow: 60, offsetC: 5, smoothAbove: 10, smoothBelow: 10, headN: 5, double: true, doublePhase: 0.2, doubleOffsetC: 4 },
-  { x: 0.70, y: 0.10, length: 0.10, angle: 0.10, n: 30, frequency: 2.0, heightAbove: 3, heightBelow: 4, offsetC: 2 },
-  { x: 0.30, y: 0.10, length: 0.20, angle: -0.15, n: 40, frequency: 2.5, heightAbove: 3, heightBelow: 6, offsetC: 2 },
-  { x: 0.51, y: 0.80, length: 0.15, angle: 0.35, n: 50, frequency: 3.0, heightAbove: 6, heightBelow: 3, offsetC: 2, phase: 0.3 },
+  { x: 0.70, y: 0.10, length: 0.10, angle: 0.10, n: 30, frequency: 2.0, heightAbove: 5, heightBelow: 6, offsetC: 2 },
+  { x: 0.30, y: 0.10, length: 0.20, angle: -0.15, n: 40, frequency: 2.5, heightAbove: 6, heightBelow: 8, offsetC: 2 },
+  { x: 0.51, y: 0.80, length: 0.15, angle: 0.35, n: 50, frequency: 3.0, heightAbove: 8, heightBelow: 5, offsetC: 2, phase: 0.3 },
 ]
 
 /** Birds past the hand-tuned ones: spread around the cell, tweak from there. */
