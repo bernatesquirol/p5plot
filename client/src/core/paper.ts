@@ -16,6 +16,8 @@ export const SHEETS_MM = {
   A2: [420, 594],
   A1: [594, 841],
   SQUARE: [200, 200],
+  /** placeholder: the real size comes from the custom w/h params */
+  CUSTOM: [100, 150],
 } as const
 
 export type SheetName = keyof typeof SHEETS_MM
@@ -42,7 +44,15 @@ export const cm = (v: number) => mmToPx(v * 10)
 export const mm = mmToPx
 export const inch = (v: number) => v * DPI
 
-export function makePaper(sheet: SheetName, orientation: Orientation = 'portrait'): Paper {
+/**
+ * A sheet in paper pixels. `custom` is only read for the CUSTOM sheet, whose
+ * width and height are taken as given — orientation would only scramble them.
+ */
+export function makePaper(sheet: SheetName, orientation: Orientation = 'portrait', custom?: [number, number]): Paper {
+  if (sheet === 'CUSTOM') {
+    const [wMm, hMm] = custom ?? SHEETS_MM.CUSTOM
+    return { sheet, orientation: wMm >= hMm ? 'landscape' : 'portrait', wMm, hMm, w: mmToPx(wMm), h: mmToPx(hMm) }
+  }
   const [pw, ph] = SHEETS_MM[sheet]
   const [wMm, hMm] = orientation === 'portrait' ? [pw, ph] : [ph, pw]
   return { sheet, orientation, wMm, hMm, w: mmToPx(wMm), h: mmToPx(hMm) }
@@ -62,4 +72,8 @@ export function screenPaper(w: number, h: number): Paper {
 export const describePaper = (p: Paper) =>
   p.sheet === 'screen'
     ? `screen ${Math.round(p.w)}x${Math.round(p.h)}px`
-    : `${p.sheet} ${p.orientation} — ${Math.round(p.wMm)}x${Math.round(p.hMm)}mm`
+    : p.sheet === 'CUSTOM'
+      ? `custom — ${round1(p.wMm)}x${round1(p.hMm)}mm`
+      : `${p.sheet} ${p.orientation} — ${Math.round(p.wMm)}x${Math.round(p.hMm)}mm`
+
+const round1 = (v: number) => Math.round(v * 10) / 10

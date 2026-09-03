@@ -68,8 +68,12 @@ export class ParamStore {
 
   /** Show/hide a folder without touching the values inside it. */
   showFolder(path: string, visible: boolean) {
-    const folder = this.folders.get(path)
-    if (folder) folder.domElement.style.display = visible ? '' : 'none'
+    this.folders.get(path)?.show(visible)
+  }
+
+  /** Show/hide a single control, for params that only apply in some modes. */
+  showControl(path: string, key: string, visible: boolean) {
+    this.controllers[path ? `${path}/${key}` : key]?.show(visible)
   }
 
   has(key: string) {
@@ -215,6 +219,10 @@ export class ParamScope {
   /** Hide this scope's folder when the thing it configures isn't there. */
   show(visible: boolean) {
     this.store.showFolder(this.path, visible)
+  }
+  /** Hide one control when it doesn't apply, e.g. custom size on a fixed sheet. */
+  showControl(key: string, visible: boolean) {
+    this.store.showControl(this.path, key, visible)
   }
 }
 

@@ -37,17 +37,20 @@ export class Sketch {
   private redrawQueued = false
   private pointerHandlers: PointerHandler[] = []
   private readout = { size: '' }
+  /** true while the gallery is showing and the sketch is paused */
+  private parked = false
 
   constructor(private container: HTMLElement, private host: SketchHost) {
     this.p = new p5((instance: p5) => {
       instance.setup = () => this.setup(instance)
       instance.draw = () => this.frame()
       instance.windowResized = () => this.onResize()
-      instance.keyPressed = () => this.onKey(instance.key)
       instance.mousePressed = () => this.onPointer('down')
       instance.mouseReleased = () => this.onPointer('up')
       instance.mouseDragged = () => this.onPointer('drag')
     }, container)
+    // p5's keyPressed can't stop the browser's save dialog, so listen directly
+    window.addEventListener('keydown', e => this.onKey(e))
   }
 
   private setup(instance: p5) {
@@ -80,6 +83,12 @@ export class Sketch {
     if (this.ready) this.rebuild()
   }
 
+  /** Static sketches sit in noLoop(), so an export has to ask for a frame. */
+  requestExport() {
+    this.pendingExport = true
+    this.requestRedraw()
+  }
+
   requestRebuild() {
     this.pendingRebuild = true
     this.requestRedraw()
@@ -87,11 +96,13 @@ export class Sketch {
 
   /** Park the sketch while the gallery is showing. */
   hide() {
+    this.parked = true
     this.p.noLoop()
     if (this.store) this.store.gui.domElement.style.display = 'none'
   }
 
   show() {
+    this.parked = false
     if (this.store) this.store.gui.domElement.style.display = ''
   }
 
@@ -117,12 +128,15 @@ export class Sketch {
     const picker = { plot: this.route }
     gui.add(picker, 'plot', this.host.routes).name('plot').onChange((r: string) => go(r))
     gui.add({ gallery: () => go('') }, 'gallery').name('all plots')
-    gui.add({ exportSVG: () => (this.pendingExport = true) }, 'exportSVG').name('export SVG (s)')
+    gui.add({ exportSVG: () => this.requestExport() }, 'exportSVG').name('export SVG (s / ctrl+s)')
     gui.add(this.readout, 'size').name('paper').listen().disable()
 
     store.folder('sketch').open()
     app.choice<SheetName>('sheet', this.def!.sheet ?? 'A4', SHEET_NAMES)
     app.choice<Orientation>('orientation', this.def!.orientation ?? 'portrait', ORIENTATIONS)
+    // only meaningful for the CUSTOM sheet; hidden otherwise (see syncSheetControls)
+    app.num('width_mm', 100, { min: 5, max: 2000, step: 0.5, label: 'custom w (mm)' })
+    app.num('height_mm', 150, { min: 5, max: 2000, step: 0.5, label: 'custom h (mm)' })
     app.choice<Sizing>('sizing', this.def!.sizing ?? 'paper', ['paper', 'screen'])
     app.num('zoom', 1, { min: 0.1, max: 4, step: 0.05, rebuild: false })
     app.num('seed', 1, { min: 1, max: 9999, step: 1 })
@@ -144,7 +158,19 @@ export class Sketch {
       const [w, h] = this.containerSize()
       return screenPaper(w, h)
     }
-    return makePaper(app.get<SheetName>('sheet'), app.get<Orientation>('orientation'))
+    return makePaper(app.get<SheetName>('sheet'), app.get<Orientation>('orientation'), [
+      app.get<number>('width_mm'),
+      app.get<number>('height_mm'),
+    ])
+  }
+
+  /** Show the size fields only where they do something. */
+  private syncSheetControls() {
+    const app = this.app()
+    const custom = app.get<Sizing>('sizing') !== 'screen' && app.get<SheetName>('sheet') === 'CUSTOM'
+    app.showControl('width_mm', custom)
+    app.showControl('height_mm', custom)
+    app.showControl('orientation', !custom)
   }
 
   private containerSize(): [number, number] {
@@ -155,6 +181,7 @@ export class Sketch {
   /** Throw the plot tree away and build it again from the current params. */
   private rebuild() {
     const app = this.app()
+    this.syncSheetControls()
     this.paper = this.resolvePaper()
     const seed = app.get<number>('seed') ?? 1
     seedGlobalRng(seed)
@@ -171,7 +198,7 @@ export class Sketch {
       params: this.store!.scope('plot'),
       layers: this.layers!,
       seed,
-      exportSVG: () => (this.pendingExport = true),
+      exportSVG: () => this.requestExport(),
       pointer: () => this.screenToPaper(this.p.mouseX, this.p.mouseY),
       onPointer: handler => this.pointerHandlers.push(handler),
     })
@@ -239,11 +266,20 @@ export class Sketch {
     this.requestRedraw()
   }
 
-  private onKey(key: string) {
+  private onKey(e: KeyboardEvent) {
+    if (!this.def || !this.store || this.parked) return
     // don't fire shortcuts while typing into a gui field
     const active = document.activeElement
     if (active && ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName)) return
-    if (key === 's') this.pendingExport = true
+    const key = e.key.toLowerCase()
+    // ctrl/cmd+s means "save" everywhere else, so take it before the browser does
+    if (key === 's' && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault()
+      this.requestExport()
+      return
+    }
+    if (e.ctrlKey || e.metaKey || e.altKey) return
+    if (key === 's') this.requestExport()
     if (key === 'h') this.toggleGui()
     if (key === 'r') this.app().set('seed', 1 + Math.floor(Math.random() * 9998))
   }
