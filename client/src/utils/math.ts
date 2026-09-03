@@ -1,8 +1,10 @@
+import { rnd } from '../core/rng'
+
 export const randomBetween = (init:number, end:number)=>{
-    return Math.random()*(end-init)+init
+    return rnd()*(end-init)+init
 }
 export const getRandomFromList = (list)=>{
-  let index = Math.floor(Math.random() * list.length);
+  let index = Math.floor(rnd() * list.length);
   return list[index]
 }
 export const gaussianField = (k: {x: number, y: number}, radius: number) => {

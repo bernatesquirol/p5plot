@@ -1,82 +1,57 @@
-import { Signature } from "../../components/SignaturePlot";
-import { Margins } from "../../components/Margins";
-import { DisplayMode, PAPER_SIZES, Plot, SinglePlot } from "../../components/Plot";
-import { inRange } from "../../utils";
-import { Plot as StarPlot } from "../260119_star";
-import p5 from "p5"
-export class MultiStarPlot extends SinglePlot {
-    // list of plots
-    // draw function -> boxes
-    // displayMode = 
-    static displayMode = DisplayMode.PRINT;
-    static paper = PAPER_SIZES.A3_h
-    margins: Margins
-    plots: Plot[]
-    signatures: Plot[]
-    constructor(p5: p5,{height, width, saveSVG, }){
-        super({p5, })
-        // let widthSubplot = width/cols
-        // let heightSubplot = height/rows
-        this.plots = []
-        this.signatures = []
-        let paddingLateral = `0.5cm`
-        let firmaSize = `0.8cm`
-        this.margins = new Margins(p5,{
-            x:0, 
-            y:0, 
-            width, 
-            height, 
-            xTracks:`${paddingLateral} 1 ${firmaSize} 1 ${firmaSize} 1 ${firmaSize} 1 ${firmaSize} ${paddingLateral}`, 
-            yTracks:`${paddingLateral} 1 1 1 1 ${paddingLateral}`
-        })
-        // debugger
-        this.margins.regions.forEach((row, rowIndex)=>{
-            row.forEach((cell, colIndex)=>{
-                let selectedRows = [1,3,5,7]
-                let selectedCols = [1,2,3,4]
-                if (selectedRows.includes(rowIndex) && selectedCols.includes(colIndex)){
-                    // debugger
-                let plot = new StarPlot({p5,parentPlot:this},{
-                    x: cell.x,
-                    y: cell.y,
-                    centerTree: {x: cell.width/2, y: cell.height/2},
-                    angleTree: -Math.PI/2,
-                    width: cell.width,
-                    height: cell.height,
-                    saveSVG
-                });
-                plot.randomize(0.2)
-                plot.gui.close()
-                this.plots.push(plot)
-                }
-                if (selectedRows.includes(rowIndex-1) && selectedCols.includes(colIndex)){
-                    let signature = new Signature(p5,{
-                        x: cell.x+cell.width*0.42,
-                        y: cell.y+cell.height*0.8,
-                        width: cell.width*0.35,
-                        height: cell.height,
-                    })
-                    this.signatures.push(signature)
-                }
-            })
-        })
-        // inRange(cols).forEach(c=>{
-        //     inRange(rows).forEach(r=>{
-                
-        //     })
-        // })
-        
+import { definePlot, Plot, PlotCtx } from '../../core/plot'
+import { Margins } from '../../components/Margins'
+import { Signature } from '../../components/Signature'
+import { Star5Plot } from '../260119_star'
+
+/** A sheet of stars: same subplot repeated, one param folder for all of them. */
+export class StarSheet extends Plot {
+  margins: Margins
+  stars: Star5Plot[] = []
+  signatures: Signature[] = []
+
+  constructor(ctx: PlotCtx) {
+    super(ctx)
+
+    const cols = this.num('cols', 4, { min: 1, max: 8, step: 1 })
+    const rows = this.num('rows', 4, { min: 1, max: 8, step: 1 })
+    const pad = `${this.num('padding_cm', 0.5, { min: 0, max: 4, step: 0.1 })}cm`
+    const gutter = `${this.num('signature_cm', 0.8, { min: 0, max: 3, step: 0.1 })}cm`
+
+    this.margins = new Margins(this.p5, {
+      ...this.box,
+      xTracks: [pad, ...Array.from({ length: cols }, () => `1 ${gutter}`), pad].join(' '),
+      yTracks: [pad, ...Array.from({ length: rows }, () => '1'), pad].join(' '),
+    })
+
+    for (let col = 0; col < cols; col++) {
+      for (let row = 0; row < rows; row++) {
+        const cell = this.margins.regions[1 + 2 * col][1 + row]
+        this.stars.push(new Star5Plot(ctx.child('star', cell), { density: 0.35, grid: 12 }))
+
+        const gutterCell = this.margins.regions[2 + 2 * col][1 + row]
+        this.signatures.push(new Signature(this.p5, {
+          x: gutterCell.toX(0.42),
+          y: gutterCell.toY(0.8),
+          width: gutterCell.width * 0.35,
+          height: gutterCell.height,
+          sheet: 'firmes4',
+          rotate: -Math.PI / 2,
+          rng: this.rng.fork(`sign-${col}-${row}`),
+        }))
+      }
     }
-    draw(){
-        let margins = this.addLayer("margins", ()=>{
-            this.margins.draw()
-        }, { visible: true })
-        this.plots.forEach(plot=>{
-            plot.draw()
-        })
-        let signature = this.addLayer("signature", ()=>{
-            this.signatures.map(sign=>sign.draw())
-        }, { visible: true })
-        this.drawLayers()
-    }
+  }
+
+  draw() {
+    this.layer('margins', () => this.margins.draw())
+    this.stars.forEach(star => star.draw())
+    this.layer('signature', () => this.signatures.forEach(s => s.draw()))
+  }
 }
+
+export default definePlot({
+  title: 'Star sheet',
+  sheet: 'A3',
+  orientation: 'landscape',
+  create: ctx => new StarSheet(ctx),
+})

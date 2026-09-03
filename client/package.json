@@ -3,10 +3,10 @@
   "version": "0.0.0",
   "scripts": {
     "dev": "vite --host",
-    "build": "tsc && vite build",
-    "deploy": "netlify deploy --dir=dist --prod",
-    "serve": "vite preview",
-    "tsc": "tsc"
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "deploy": "netlify deploy --dir=dist --prod"
   },
   "devDependencies": {
     "@types/p5": "^0.9.1",

@@ -1,175 +1,131 @@
-import { InvisibleColor } from '../utils/p5';
-import { createRect, createSegment, createSegmentPoints, drawFlatten } from '../utils';
 import p5 from 'p5'
-import { DPI, Plot } from './Plot';
-import { Polygon, Segment } from '@flatten-js/core';
-// "1 m 2 m 1"
+import { Polygon, Segment } from '@flatten-js/core'
+import { createSegmentPoints, drawFlatten } from '../utils'
+import { cm, mm } from '../core/paper'
+import { Rect, RectLike } from '../core/rect'
 
-type RectContainer = { x: number; y: number; width: number; height: number; };
+/**
+ * CSS-grid-ish layout for a sheet, plus the crop marks that show where the
+ * cells are. Track specs, space separated:
+ *
+ *   "2cm 1fr 2cm"        fixed / flexible
+ *   "1cm 2 1 1cm"        a bare number is a flex unit
+ *   "10mm 1fr-[main] 1"  name a track and read it back from namedRegions
+ *
+ * Fixed units are cm / mm / px (px = paper pixels, i.e. 1/DPI inch).
+ */
 
 type Track = {
-  sizeSpec: string;
-  fixed?: number;
-  flex?: number;
-  size?: number;   // resolved pixel size
-  start?: number;  // resolved pixel offset from container origin
-  name?: string;
-};
-
-
-function buildGrid(container: RectContainer, xTracksStr: string, yTracksStr: string) {
-    const regions: RectContainer[][] = [];
-    const namedRegions: Record<string, RectContainer[]> = {};
-    const { x: x0, y: y0, width: totalWidth, height: totalHeight } = container;
-
-    // --- Helper: parse tracks ---
-    const parseTracks = (str: string): Track[] => {
-        return str.split(/\s+/).map(token => {
-            let sizeSpec = token;
-            let name: string | undefined;
-
-            if (token.includes("-")) {
-                const parts = token.split("-");
-                sizeSpec = parts[0];
-                name = parts[1].replace(/[\[\]]/g, "");
-            }
-
-            const t: Track = { sizeSpec, name };
-            if (sizeSpec.endsWith("cm")) t.fixed = parseFloat(sizeSpec) * (DPI / 2.54); // cm → px (1 inch = 2.54 cm)
-            else if (sizeSpec.endsWith("px")) t.fixed = parseFloat(sizeSpec);
-            else if (sizeSpec.endsWith("fr")) t.flex = parseFloat(sizeSpec) || 1;
-            else t.flex = parseFloat(sizeSpec) || 1;
-
-            return t;
-        });
-    };
-
-    // --- Helper: resolve track sizes ---
-    const resolveTracks = (tracks: Track[], total: number) => {
-        const fixedTotal = tracks.reduce((s, t) => s + (t.fixed ?? 0), 0);
-        const flexTotal = tracks.reduce((s, t) => s + (t.flex ?? 0), 0);
-        const unit = flexTotal > 0 ? (total - fixedTotal) / flexTotal : 0;
-
-        let cursor = 0;
-        tracks.forEach(t => {
-            t.size = t.fixed ?? (t.flex! * unit);
-            t.start = cursor;
-            cursor += t.size;
-        });
-    };
-
-    const xTracks = parseTracks(xTracksStr);
-    const yTracks = parseTracks(yTracksStr);
-
-    resolveTracks(xTracks, totalWidth);
-    resolveTracks(yTracks, totalHeight);
-
-    // --- Build grid ---
-    for (let xi = 0; xi < xTracks.length; xi++) {
-        regions[xi] = [];
-        const xT = xTracks[xi];
-
-        for (let yi = 0; yi < yTracks.length; yi++) {
-            const yT = yTracks[yi];
-
-            const box: RectContainer = {
-                x: x0 + xT.start!,
-                y: y0 + yT.start!,
-                width: xT.size!,
-                height: yT.size!
-            };
-
-            regions[xi][yi] = box;
-
-            // Collect named regions
-            if (xT.name) {
-                namedRegions[xT.name] ??= [];
-                namedRegions[xT.name].push(box);
-            }
-            if (yT.name) {
-                namedRegions[yT.name] ??= [];
-                namedRegions[yT.name].push(box);
-            }
-        }
-    }
-
-    return { regions, namedRegions, xTracks, yTracks };
+  fixed?: number
+  flex?: number
+  size: number
+  start: number
+  name?: string
 }
 
-export class Margins extends Plot{
-    namedRegions: Record<string, RectContainer[]>
-    regions: RectContainer[][]
-    drawingSegments:  (Segment|Polygon)[]
-    constructor(p5: p5, params: { x?: number, y?: number, width: number, height: number, xTracks: string, yTracks: string }) {
-        super({p5, useGui: false})
-        let { x, y, width, height, xTracks, yTracks } = params
+function parseTracks(spec: string): Track[] {
+  return spec.trim().split(/\s+/).map(token => {
+    let sizeSpec = token
+    let name: string | undefined
+    if (token.includes('-')) {
+      const [size, label] = token.split('-')
+      sizeSpec = size
+      name = label.replace(/[\[\]]/g, '')
+    }
+    const t: Track = { size: 0, start: 0, name }
+    if (sizeSpec.endsWith('cm')) t.fixed = cm(parseFloat(sizeSpec))
+    else if (sizeSpec.endsWith('mm')) t.fixed = mm(parseFloat(sizeSpec))
+    else if (sizeSpec.endsWith('px')) t.fixed = parseFloat(sizeSpec)
+    else t.flex = parseFloat(sizeSpec) || 1
+    return t
+  })
+}
 
-        let { regions, namedRegions } = buildGrid({ x:x||0, y:y||0, width, height }, xTracks, yTracks)
-        this.namedRegions = namedRegions
-        this.regions = regions
-        this.drawingSegments = []
-        this.regions.forEach((columnRegion, columnIndex, arrayCols)=>{
-            
-            columnRegion.forEach((cell, rowIndex, arrayRows)=>{
-                let geo;
-                let cellMidX = cell.x+cell.width/2
-                let finalX = cell.x+cell.width
-                let cellMidY = cell.y+cell.height/2
-                let finalY = cell.y+cell.height
-                let firstRow = rowIndex===0
-                let lastRow = rowIndex===arrayRows.length-1
-                let firstCol = columnIndex ===0
-                let lastCol = columnIndex ===arrayCols.length-1
-                if (firstRow  && !firstCol){
-                    geo = createSegmentPoints({
-                        x0:cell.x,
-                        y0:0,
-                        xf:cell.x,
-                        yf:cellMidY
-                    })
-                }
-                if (lastRow && !firstCol ){
-                    geo = createSegmentPoints({
-                        x0:cell.x,
-                        y0:cellMidY,
-                        xf:cell.x,
-                        yf:finalY
-                    })
-                }
-                if (firstCol && !firstRow ){
-                    geo = createSegmentPoints({
-                        x0:0,
-                        y0:cell.y,
-                        xf:cellMidX,
-                        yf:cell.y
-                    })
-                }
-                if (lastCol && !firstRow ){
-                    geo = createSegmentPoints({
-                        x0:cellMidX,
-                        y0:cell.y,
-                        xf:finalX,
-                        yf:cell.y
-                    })
-                }
-                if (geo){
-                    this.drawingSegments.push(geo)
-                }
-                // this.drawingSegments.push(createRect({
-                //     x: cell.x,
-                //     y: cell.y,
-                //     w:cell.width,
-                //     h:cell.height
-                // }))
-                
-            })
-            
-        })
-    }
-    draw(){
-        this.p5.push()
-        this.drawingSegments.map(geo=>drawFlatten(this.p5, geo))
-        this.p5.pop()
-        
-    }
+function resolveTracks(tracks: Track[], total: number) {
+  const fixedTotal = tracks.reduce((s, t) => s + (t.fixed ?? 0), 0)
+  const flexTotal = tracks.reduce((s, t) => s + (t.flex ?? 0), 0)
+  const unit = flexTotal > 0 ? (total - fixedTotal) / flexTotal : 0
+  let cursor = 0
+  tracks.forEach(t => {
+    t.size = t.fixed ?? t.flex! * unit
+    t.start = cursor
+    cursor += t.size
+  })
+  return tracks
+}
+
+export function buildGrid(container: RectLike, xTracksStr: string, yTracksStr: string) {
+  const box = container instanceof Rect ? container : new Rect(container)
+  const xTracks = resolveTracks(parseTracks(xTracksStr), box.width)
+  const yTracks = resolveTracks(parseTracks(yTracksStr), box.height)
+  const namedRegions: Record<string, Rect[]> = {}
+
+  // regions[col][row]
+  const regions = xTracks.map(xT =>
+    yTracks.map(yT => {
+      const cell = new Rect({ x: box.x + xT.start, y: box.y + yT.start, width: xT.size, height: yT.size })
+      for (const name of [xT.name, yT.name]) {
+        if (name) (namedRegions[name] ??= []).push(cell)
+      }
+      return cell
+    }))
+
+  return { regions, namedRegions, xTracks, yTracks }
+}
+
+export type MarginsOpts = RectLike & { xTracks: string; yTracks: string }
+
+export class Margins {
+  regions: Rect[][]
+  namedRegions: Record<string, Rect[]>
+  marks: (Segment | Polygon)[]
+
+  constructor(private p: p5, opts: MarginsOpts) {
+    const { regions, namedRegions } = buildGrid(opts, opts.xTracks, opts.yTracks)
+    this.regions = regions
+    this.namedRegions = namedRegions
+    this.marks = cropMarks(regions)
+  }
+
+  /** every cell, flattened */
+  cells(): Rect[] {
+    return this.regions.flat()
+  }
+
+  /** cells of a named track */
+  named(name: string): Rect[] {
+    return this.namedRegions[name] || []
+  }
+
+  draw() {
+    this.p.push()
+    this.marks.forEach(geo => drawFlatten(this.p, geo))
+    this.p.pop()
+  }
+}
+
+/** Short ticks on the outer edges marking each grid line. */
+function cropMarks(regions: Rect[][]): (Segment | Polygon)[] {
+  const marks: (Segment | Polygon)[] = []
+  regions.forEach((column, colIndex) => {
+    column.forEach((cell, rowIndex) => {
+      const firstRow = rowIndex === 0
+      const lastRow = rowIndex === column.length - 1
+      const firstCol = colIndex === 0
+      const lastCol = colIndex === regions.length - 1
+      if (firstRow && !firstCol) {
+        marks.push(createSegmentPoints({ x0: cell.x, y0: cell.y, xf: cell.x, yf: cell.cy }))
+      }
+      if (lastRow && !firstCol) {
+        marks.push(createSegmentPoints({ x0: cell.x, y0: cell.cy, xf: cell.x, yf: cell.bottom }))
+      }
+      if (firstCol && !firstRow) {
+        marks.push(createSegmentPoints({ x0: cell.x, y0: cell.y, xf: cell.cx, yf: cell.y }))
+      }
+      if (lastCol && !firstRow) {
+        marks.push(createSegmentPoints({ x0: cell.cx, y0: cell.y, xf: cell.right, yf: cell.y }))
+      }
+    })
+  })
+  return marks
 }

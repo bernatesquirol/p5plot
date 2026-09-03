@@ -1,3 +1,4 @@
+import { rnd } from '../core/rng'
 import { Circle, Matrix, Point, Polygon, Segment, Vector, point, segment } from "@flatten-js/core";
 import * as martinez from 'martinez-polygon-clipping';
 export function equilateralTriangleCentroidDown({x,y,w,h}:{x:number, y:number, w:number, h:number}) {
@@ -33,7 +34,6 @@ export class Star {
     outerR,
     innerR,
     outerVariation = 0.2,
-    innerVariation = 0.2,
     angleVariation = 0.3,
   }: StarParams) {
     this.inners = []
@@ -44,10 +44,10 @@ export class Star {
 
     // Start pointing up
     const startAngle = -Math.PI / 2
-    const radiusVariation = (1 - outerVariation) + Math.random() * (2 * outerVariation)
+    const radiusVariation = (1 - outerVariation) + rnd() * (2 * outerVariation)
     for (let i = 0; i < tips; i++) {
       // Outer point (tip) - randomize within outer range
-      const outerAngleOffset = (Math.random() - 0.5) * angleVariation
+      const outerAngleOffset = (rnd() - 0.5) * angleVariation
       const outerAngle = startAngle + i * baseStep + outerAngleOffset
       const outerRadius = outerR * radiusVariation
 
@@ -59,7 +59,7 @@ export class Star {
       points.push(outer)
 
       // Inner point (valley) - randomize within inner range
-      const innerAngleOffset = (Math.random() - 0.5) * angleVariation
+      const innerAngleOffset = (rnd() - 0.5) * angleVariation
       const innerAngle = startAngle + i * baseStep + baseStep / 2 + innerAngleOffset
       const innerRadius = innerR * radiusVariation
 
@@ -384,9 +384,9 @@ export const gridify = (p: Polygon, nRows: number, nCols: number, flatten: boole
   
   return flatten ? grid.flat() as [number,number][] : grid as Array<Array<[number,number]>>;
 };
-function randomPointInTriangle(a, b, c) {
-  const r1 = Math.random();
-  const r2 = Math.random();
+export function randomPointInTriangle(a, b, c) {
+  const r1 = rnd();
+  const r2 = rnd();
   const sqrtR1 = Math.sqrt(r1);
 
   const u = 1 - sqrtR1;
@@ -410,22 +410,22 @@ export function triangleArea(a, b, c) {
 
 // Shorter version
 export function getRandomPointOnBox(box) {
-    const edge = Math.floor(Math.random() * 4);
-    const t = Math.random();
+    const edge = Math.floor(rnd() * 4);
+    const t = rnd();
     
     switch(edge) {
         case 0: return point(box.xmin + t * (box.xmax - box.xmin), box.ymin); // top
         case 1: return point(box.xmax, box.ymin + t * (box.ymax - box.ymin)); // right
         case 2: return point(box.xmin + t * (box.xmax - box.xmin), box.ymax); // bottom
-        case 3: return point(box.xmin, box.ymin + t * (box.ymax - box.ymin)); // left
+        default: return point(box.xmin, box.ymin + t * (box.ymax - box.ymin)); // left
     }
 }
 
 
 // Get random point on a random edge of the polygon
 export function getRandomPointOnPolygonEdge(polygon) {
-    const randomEdge = [...polygon.edges][Math.floor(Math.random() * [...polygon.edges].length)];
-    const t = Math.random();
+    const randomEdge = [...polygon.edges][Math.floor(rnd() * [...polygon.edges].length)];
+    const t = rnd();
     return randomEdge.pointAtLength(t * randomEdge.length);
 }
 
@@ -434,8 +434,8 @@ export function randomPointInPolygon(polygon) {
   const { xmin, ymin, xmax, ymax } = polygon.box;
 
   while (true) {
-    const x = xmin + Math.random() * (xmax - xmin);
-    const y = ymin + Math.random() * (ymax - ymin);
+    const x = xmin + rnd() * (xmax - xmin);
+    const y = ymin + rnd() * (ymax - ymin);
 
     const pt = new Point(x, y);
 
@@ -461,7 +461,7 @@ export const unitXY = (v: {x: number, y: number}) => {
   return new Vector(v.x / magnitude, v.y / magnitude);
 }
 export const iterTwo = (list) => {
-  const result = [];
+  const result: any[] = [];
   for (let i = 0; i < list.length - 1; i++) {
     result.push([list[i], list[i + 1]]);
   }

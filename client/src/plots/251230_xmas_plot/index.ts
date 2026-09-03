@@ -1,50 +1,42 @@
-import { Margins } from "../../components/Margins";
-import { DisplayMode, PAPER_SIZES, Plot } from "../../components/Plot";
-import { inRange } from "../../utils";
-import { XmasPlot } from "../251222_xmas";
-import p5 from "p5"
-export class MultiXmasPlot extends Plot {
-    // list of plots
-    // draw function -> boxes
-    // displayMode = 
-    static displayMode = DisplayMode.PRINT;
-    static paper = PAPER_SIZES.A3_h
-    margins: Margins
-    plots: Plot[]
-    constructor(p5: p5,{height, width, saveSVG, cols, rows}){
-        super({p5, })
-        let widthSubplot = width/cols
-        let heightSubplot = height/rows
-        this.plots = []
-        inRange(cols).forEach(c=>{
-            inRange(rows).forEach(r=>{
-                let plot = new XmasPlot(p5,{
-                    x: c*widthSubplot,
-                    y: r*heightSubplot,
-                    centerTree: {x: 0.87*widthSubplot/2, y: heightSubplot/4},
-                    angleTree: -Math.PI/2,
-                    width: widthSubplot,
-                    height: heightSubplot,
-                    saveSVG
-                });
-                plot.randomize(0.2)
-                plot.gui.close()
-                this.plots.push(plot)
-            })
-        })
-        this.margins = new Margins(p5,{
-            x:0, 
-            y:0, 
-            width, 
-            height, 
-            xTracks:"1cm 2 10 2 1cm", 
-            yTracks:"1cm 2 2 2 1cm"
-        })
+import { definePlot, Plot, PlotCtx } from '../../core/plot'
+import { Margins } from '../../components/Margins'
+import { XmasPlot } from '../251222_xmas'
+
+/** A grid of trees on one sheet. */
+export class XmasSheet extends Plot {
+  margins: Margins
+  trees: XmasPlot[] = []
+
+  constructor(ctx: PlotCtx) {
+    super(ctx)
+
+    const cols = this.num('cols', 3, { min: 1, max: 8, step: 1 })
+    const rows = this.num('rows', 3, { min: 1, max: 8, step: 1 })
+    const pad = `${this.num('padding_cm', 1, { min: 0, max: 4, step: 0.1 })}cm`
+
+    this.margins = new Margins(this.p5, {
+      ...this.box,
+      xTracks: [pad, ...Array.from({ length: cols }, () => '1'), pad].join(' '),
+      yTracks: [pad, ...Array.from({ length: rows }, () => '1'), pad].join(' '),
+    })
+
+    for (let col = 0; col < cols; col++) {
+      for (let row = 0; row < rows; row++) {
+        const cell = this.margins.regions[1 + col][1 + row]
+        this.trees.push(new XmasPlot(ctx.child('xmas', cell), { count: 40 }))
+      }
     }
-    draw(){
-        this.plots.forEach(plot=>{
-            plot.draw()
-        })
-        this.margins.draw()
-    }
+  }
+
+  draw() {
+    this.layer('margins', () => this.margins.draw())
+    this.trees.forEach(tree => tree.draw())
+  }
 }
+
+export default definePlot({
+  title: 'Xmas sheet',
+  sheet: 'A3',
+  orientation: 'landscape',
+  create: ctx => new XmasSheet(ctx),
+})
