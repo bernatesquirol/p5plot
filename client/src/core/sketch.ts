@@ -111,7 +111,7 @@ export class Sketch {
    * but never a nested one: p5.redraw() runs draw() synchronously.
    */
   private requestRedraw() {
-    if (this.def?.animated !== false) return
+    if (!this.ready || this.def?.animated !== false) return
     if (this.inFrame) this.redrawQueued = true
     else this.p.redraw()
   }
@@ -150,6 +150,15 @@ export class Sketch {
       location.reload()
     })
     store.folder('layers')
+
+    // On a deployed page the panel is in the way; while working it's the point.
+    if (!guiStartsOpen()) gui.close()
+    // Collapsing frees the width the sheet is fitted into, so refit on toggle.
+    gui.onOpenClose(changed => {
+      if (changed !== gui) return
+      this.computeView()
+      this.requestRedraw()
+    })
   }
 
   private resolvePaper(): Paper {
@@ -216,8 +225,9 @@ export class Sketch {
 
   /** Width the panel steals from the canvas, so the sheet isn't hidden by it. */
   private guiWidth() {
-    const el = this.store?.gui.domElement
-    if (!el || el.style.display === 'none') return 0
+    const gui = this.store?.gui
+    const el = gui?.domElement
+    if (!el || el.style.display === 'none' || gui!._closed) return 0
     const w = el.offsetWidth
     // On a narrow screen there is nothing to give: let the panel overlap.
     return this.p.width < 2 * w ? 0 : w
@@ -363,6 +373,19 @@ export class Sketch {
     this.computeView()
     this.requestRedraw()
   }
+}
+
+/**
+ * The panel starts open in `vite dev` and collapsed in a build — no env var
+ * or Pages setting needed, `import.meta.env.DEV` is set by the build itself.
+ * `?gui=0` / `?gui=1` overrides either way, e.g. to debug a preview build.
+ */
+function guiStartsOpen() {
+  const search = new URLSearchParams(location.search)
+  const hashQuery = new URLSearchParams(location.hash.split('?')[1] ?? '')
+  const flag = search.get('gui') ?? hashQuery.get('gui')
+  if (flag != null) return !['0', 'false', 'closed', 'off'].includes(flag)
+  return import.meta.env.DEV
 }
 
 const stamp = () => {
