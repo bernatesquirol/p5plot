@@ -9,6 +9,12 @@ import { seedGlobalRng } from './rng'
 import { go } from './router'
 
 const SCREEN_PADDING = 16
+/**
+ * Fixed simulation timestep. p5's deltaTime is the wall clock since the last
+ * frame, which after a pause is seconds long — enough to blow a Matter world
+ * apart in one update — and it makes a run unreproducible even when it doesn't.
+ */
+const SIM_DT = 1000 / 60
 
 export type SketchHost = {
   /** title -> route, the shape lil-gui wants for a dropdown */
@@ -39,6 +45,14 @@ export class Sketch {
   private readout = { size: '' }
   /** true while the gallery is showing and the sketch is paused */
   private parked = false
+  /** is p5 looping right now? it starts out that way, until told otherwise */
+  private looping = true
+  /** is the simulation of an animated plot advancing? */
+  private running = false
+  /** advance one frame, then stop again */
+  private pendingStep = false
+  /** the plot reported nothing left to simulate, so the loop was stopped */
+  private settled = false
 
   constructor(private container: HTMLElement, private host: SketchHost) {
     this.p = new p5((instance: p5) => {
@@ -76,7 +90,11 @@ export class Sketch {
     this.store = new ParamStore({
       title: def.title,
       storageKey: `p5plot:params:${route}`,
-      onChange: rebuild => (rebuild ? this.requestRebuild() : this.requestRedraw()),
+      onChange: rebuild => {
+        if (rebuild) return this.requestRebuild()
+        this.applyRunState()
+        this.requestRedraw()
+      },
     })
     this.layers = new LayerRegistry(this.store.scope('layers'))
     this.buildAppControls()
@@ -97,7 +115,7 @@ export class Sketch {
   /** Park the sketch while the gallery is showing. */
   hide() {
     this.parked = true
-    this.p.noLoop()
+    this.setLoop(false)
     if (this.store) this.store.gui.domElement.style.display = 'none'
   }
 
@@ -106,14 +124,40 @@ export class Sketch {
     if (this.store) this.store.gui.domElement.style.display = ''
   }
 
+  private setLoop(on: boolean) {
+    if (on === this.looping) return
+    this.looping = on
+    if (on) this.p.loop()
+    else this.p.noLoop()
+  }
+
   /**
-   * Static sketches sit in noLoop(), so changes need an explicit redraw —
+   * A parked sketch sits in noLoop(), so changes need an explicit redraw —
    * but never a nested one: p5.redraw() runs draw() synchronously.
    */
   private requestRedraw() {
-    if (!this.ready || this.def?.animated !== false) return
+    if (!this.ready || this.looping) return
     if (this.inFrame) this.redrawQueued = true
     else this.p.redraw()
+  }
+
+  /**
+   * A simulation only advances while `run` is on, so a plot left open doesn't
+   * peg a core and the drawing you exported is the drawing you were looking at.
+   */
+  private applyRunState() {
+    if (!this.def || !this.store) return
+    this.running = this.def.animated !== false && this.app().get<boolean>('run') === true
+    // any change is a reason to look again: a scene may have work to do
+    this.settled = false
+    this.setLoop(this.running)
+    if (!this.running) this.requestRedraw()
+  }
+
+  /** One frame of simulation while paused. */
+  private stepOnce() {
+    this.pendingStep = true
+    this.requestRedraw()
   }
 
   private app() {
@@ -141,6 +185,11 @@ export class Sketch {
     app.num('zoom', 1, { min: 0.1, max: 4, step: 0.05, rebuild: false })
     app.num('seed', 1, { min: 1, max: 9999, step: 1 })
     app.button('reroll', () => app.set('seed', 1 + Math.floor(Math.random() * 9998)))
+    if (this.def!.animated !== false) {
+      // transient: a plot opens running, however you left it
+      app.bool('run', true, { rebuild: false, transient: true, label: 'run simulation' })
+      app.button('step', () => this.stepOnce())
+    }
     app.num('strokeWeight', 1, { min: 0.1, max: 8, step: 0.1, rebuild: false })
     app.color('ink', '#000000', { rebuild: false })
     app.color('sheet color', '#ffffff', { rebuild: false })
@@ -215,12 +264,8 @@ export class Sketch {
     this.readout.size = describePaper(this.paper)
     this.pendingRebuild = false
 
-    if (this.def!.animated === false) {
-      this.p.noLoop()
-      this.requestRedraw()
-    } else {
-      this.p.loop()
-    }
+    this.applyRunState()
+    this.requestRedraw()
   }
 
   /** Width the panel steals from the canvas, so the sheet isn't hidden by it. */
@@ -337,11 +382,13 @@ export class Sketch {
     p.fill(app.get<string>('sheet color') || '#ffffff')
     p.rect(0, 0, this.paper.w, this.paper.h)
     p.pop()
-    this.drawPlot(app.get<boolean>('crisp') ? 1 / this.view.scale : 1)
+    const stepping = (this.running && !this.settled) || this.pendingStep
+    this.pendingStep = false
+    this.drawPlot(app.get<boolean>('crisp') ? 1 / this.view.scale : 1, stepping)
     p.pop()
   }
 
-  private drawPlot(weightScale: number) {
+  private drawPlot(weightScale: number, stepping = false) {
     const p = this.p
     const app = this.app()
     p.push()
@@ -349,6 +396,11 @@ export class Sketch {
     p.strokeWeight((app.get<number>('strokeWeight') ?? 1) * weightScale)
     p.noFill()
     this.layers!.beginFrame()
+    if (stepping && this.plot!.step?.(SIM_DT) === false) {
+      // nothing moving: stop the loop but leave `run` on, so the next change resumes
+      this.settled = true
+      this.setLoop(false)
+    }
     this.plot!.draw()
     this.layers!.flush()
     p.pop()

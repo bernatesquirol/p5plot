@@ -22,6 +22,8 @@ export type ParamOpts = {
   rebuild?: boolean
   /** keep the control out of the panel */
   hidden?: boolean
+  /** never persisted: comes back at its default on every reload */
+  transient?: boolean
 }
 
 type Entry = { v: any; d: any }
@@ -34,6 +36,8 @@ export class ParamStore {
   private stored: Record<string, Entry> = {}
   private controllers: Record<string, Controller> = {}
   private folders = new Map<string, GUI>()
+  /** ids that are deliberately not remembered between sessions */
+  private transient = new Set<string>()
   private storageKey?: string
   private onChange: (rebuild: boolean) => void
   private saveTimer?: number
@@ -84,13 +88,13 @@ export class ParamStore {
     return this.entries[key]?.v
   }
 
-  set(key: string, v: any, { silent = false } = {}) {
+  set(key: string, v: any, { silent = false, rebuild = true } = {}) {
     const e = this.entries[key]
     if (!e) return
     e.v = v
     this.controllers[key]?.updateDisplay()
     this.persist()
-    if (!silent) this.onChange(true)
+    if (!silent) this.onChange(rebuild)
   }
 
   /**
@@ -109,7 +113,11 @@ export class ParamStore {
       }
       return known.v
     }
-    const restored = this.stored[id]
+    if (opts.transient) {
+      this.transient.add(id)
+      delete this.stored[id] // drop anything an earlier version of the code saved
+    }
+    const restored = opts.transient ? undefined : this.stored[id]
     this.entries[id] = restored && deepEqual(restored.d, def) ? { ...restored } : { v: def, d: def }
 
     if (!opts.hidden) {
@@ -166,7 +174,8 @@ export class ParamStore {
     clearTimeout(this.saveTimer)
     this.saveTimer = setTimeout(() => {
       try {
-        localStorage.setItem(this.storageKey!, JSON.stringify({ ...this.stored, ...this.entries }))
+        const keep = Object.fromEntries(Object.entries(this.entries).filter(([id]) => !this.transient.has(id)))
+        localStorage.setItem(this.storageKey!, JSON.stringify({ ...this.stored, ...keep }))
       } catch { /* quota / private mode */ }
     }, 200) as unknown as number
   }
@@ -210,7 +219,7 @@ export class ParamScope {
   get<T = any>(key: string): T {
     return this.store.get(this.path ? `${this.path}/${key}` : key)
   }
-  set(key: string, v: any, opts?: { silent?: boolean }) {
+  set(key: string, v: any, opts?: { silent?: boolean; rebuild?: boolean }) {
     this.store.set(this.path ? `${this.path}/${key}` : key, v, opts)
   }
   folder() {

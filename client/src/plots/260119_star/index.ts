@@ -112,16 +112,20 @@ export class Star5Plot extends Plot {
     }, { world: this.engine.world, p5: this.p5 }))
   }
 
-  step(scene: Scene) {
+  step(dt: number) {
+    const scene = this.scene(Object.values(Scene))
     if (scene === Scene.Explode && this.explodedAt !== Scene.Explode) {
       this.explodedAt = Scene.Explode
       this.scatter(1, this.get('grid'))
     }
-    if (scene !== Scene.End) Matter.Engine.update(this.engine, this.p5.deltaTime)
+    if (scene === Scene.End) return false
+    Matter.Engine.update(this.engine, dt)
+    return true
   }
 
   draw() {
-    this.step(this.choice('scene', Scene.Start, Object.values(Scene), { rebuild: false }))
+    // registered on draw as well, so the control is there before the first step
+    this.scene(Object.values(Scene))
     this.layer('star', () => drawFlatten(this.p5, this.starShape.polygon), { visible: false })
     this.layer('boxes', () => this.boxes.forEach(b => b.draw()))
   }

@@ -5,7 +5,16 @@ import { Orientation, Paper, SheetName } from './paper'
 import { Rect, RectLike } from './rect'
 import { makeRng, Rng } from './rng'
 
-export type Drawable = { draw: () => void }
+/**
+ * Anything the sketch can put on paper. `step` is optional and only called
+ * while the sketch is running (see the `run` toggle): plots that simulate keep
+ * their physics there, so pausing freezes the world instead of the drawing.
+ */
+export type Drawable = {
+  draw: () => void
+  /** return false when there is nothing left to simulate, and the loop stops */
+  step?: (dt: number) => void | boolean
+}
 
 export type PointerEventKind = 'down' | 'up' | 'drag'
 export type PointerPos = { x: number; y: number }
@@ -118,6 +127,18 @@ export abstract class Plot {
   color(key: string, def: string, opts?: ParamOpts) { return this.p5.color(this.params.color(key, def, opts)) }
   choice<T>(key: string, def: T, options: T[] | Record<string, T>, opts?: ParamOpts) { return this.params.choice(key, def, options, opts) }
   button(label: string, fn: () => void) { this.params.button(label, fn) }
+  /**
+   * A scene the plot walks through, with the `nextScene` button beside it.
+   * Changing scene never rebuilds, so a simulation keeps its state.
+   */
+  scene<T extends string>(scenes: T[]): T {
+    const current = this.params.choice<T>('scene', scenes[0], scenes, { rebuild: false })
+    this.params.button('nextScene', () => {
+      const at = scenes.indexOf(this.params.get<T>('scene'))
+      this.params.set('scene', scenes[(at + 1) % scenes.length], { rebuild: false })
+    })
+    return current
+  }
   get<T = any>(key: string) { return this.params.get<T>(key) }
 
   /** Queue a draw callback into a named layer. */

@@ -150,9 +150,12 @@ export class XmasPlot extends Plot {
     }
   }
 
+  step(dt: number) {
+    Matter.Engine.update(this.engine, dt)
+    Matter.Engine.update(this.engineSky, dt)
+  }
+
   draw() {
-    Matter.Engine.update(this.engine, this.p5.deltaTime)
-    Matter.Engine.update(this.engineSky, this.p5.deltaTime)
 
     this.layer('sky', () => {
       this.skyShape.attrs = { fill: this.color('skyColor', '#4d4c4c') }

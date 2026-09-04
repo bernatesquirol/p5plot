@@ -28,6 +28,10 @@ export class XmasSheet extends Plot {
     }
   }
 
+  step(dt: number) {
+    this.trees.forEach(tree => tree.step(dt))
+  }
+
   draw() {
     this.layer('margins', () => this.margins.draw())
     this.trees.forEach(tree => tree.draw())

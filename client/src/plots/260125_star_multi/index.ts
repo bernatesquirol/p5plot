@@ -42,6 +42,10 @@ export class StarSheet extends Plot {
     }
   }
 
+  step(dt: number) {
+    this.stars.forEach(star => star.step(dt))
+  }
+
   draw() {
     this.layer('margins', () => this.margins.draw())
     this.stars.forEach(star => star.draw())

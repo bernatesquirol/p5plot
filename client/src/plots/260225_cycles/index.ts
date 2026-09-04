@@ -76,6 +76,10 @@ export class Wheel {
   }
 }
 
+type Scene = 'start' | 'end'
+/** Only 'end' does anything: it stops the simulation, as it did before. */
+const SCENES: Scene[] = ['start', 'end']
+
 /**
  * Wheels tumbling around a central disc, each one trailing an echo.
  */
@@ -134,12 +138,21 @@ export class Cycles extends Plot {
         { x: c.x, y: c.y, r: rWheel, smallR: rWheel * 0.3, spikes, echo, universeCenter },
         { p5: this.p5, world })
     })
+    // geometry follows the bodies, so it needs one pass before the first draw
+    this.wheels.forEach(w => w.compute())
+  }
+
+  step(dt: number) {
+    // 'end' freezes the wheels where they are, which is what you plot
+    if (this.scene(SCENES) === 'end') return false
+    Matter.Engine.update(this.engine, dt)
+    this.wheels.forEach(w => w.compute())
+    return true
   }
 
   draw() {
-    Matter.Engine.update(this.engine, this.p5.deltaTime)
-    this.wheels.forEach(w => w.compute())
-
+    // registered on draw as well, so the control is there before the first step
+    this.scene(SCENES)
     this.layer('xino', () => this.ornaments.forEach(o => o.draw()))
     this.layer('ecos', () => this.wheels.forEach(w => drawFlatten(this.p5, w.ecos)))
     this.layer('wheels', () => this.wheels.forEach(w => drawFlatten(this.p5, w.main)))
