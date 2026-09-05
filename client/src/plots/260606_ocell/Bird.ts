@@ -1,16 +1,18 @@
-import { point, segment, Segment } from '@flatten-js/core'
+import { Segment } from '@flatten-js/core'
 import { drawFlatten } from '../../utils'
 import { Plot, PlotCtx } from '../../core/plot'
-
-const TAU = Math.PI * 2
+import { Handle } from '../../components/Handle'
+import { handleLabel, overlayStrand, ribs, SpineSample, Strand, TAU } from './spine'
 
 /** Everything about one bird. Normalised x/y/length are relative to its box. */
 export type BirdSpec = {
   x: number
   y: number
-  /** span along the centre line, as a fraction of the box width */
+  /** length along the centre line, as a fraction of the box width */
   length: number
-  /** tilt of the centre line, radians */
+  /** shrinks or grows the whole bird: lengths, rib heights, offsets, all of it */
+  scale: number
+  /** tilt of the centre line, radians; past ±90° the bird points the other way */
   angle: number
   /** number of ribs */
   n: number
@@ -37,21 +39,12 @@ export type BirdSpec = {
 }
 
 export const BIRD: BirdSpec = {
-  x: 0.5, y: 0.5, length: 0.2, angle: 0,
+  x: 0.5, y: 0.5, length: 0.2, angle: 0, scale: 1,
   n: 40, frequency: 2.5, phase: 0,
   heightAbove: 6, heightBelow: 6, offsetC: 2,
   smoothAbove: 0, smoothBelow: 0,
   headN: 0, head: true,
   double: false, doublePhase: 0.2, doubleOffsetC: 4, doubleSwapHeights: true,
-}
-
-/** One strand of ribs: what differs between a bird and its overlay. */
-type Strand = {
-  phase: number
-  offsetC: number
-  heightAbove: number
-  heightBelow: number
-  head: boolean
 }
 
 /**
@@ -64,13 +57,6 @@ type Strand = {
  */
 export class Bird extends Plot {
   spine: Segment[]
-  /** resolved geometry of the centre line, in paper pixels */
-  private line: { x0: number, yA: number, yB: number, spacing: number }
-  private n: number
-  private frequency: number
-  private headN: number
-  private smoothAbove: number
-  private smoothBelow: number
 
   constructor(ctx: PlotCtx, spec: Partial<BirdSpec> = {}) {
     super(ctx)
@@ -79,70 +65,83 @@ export class Bird extends Plot {
     const x = this.num('x', d.x, { min: -0.5, max: 1.5, step: 0.005 })
     const y = this.num('y', d.y, { min: -0.5, max: 1.5, step: 0.005 })
     const length = this.num('length', d.length, { min: 0.01, max: 2, step: 0.005 })
-    const angle = this.num('angle', d.angle, { min: -1.2, max: 1.2, step: 0.01 })
-    this.n = this.num('n', d.n, { min: 2, max: 600, step: 1 })
-    this.frequency = this.num('frequency', d.frequency, { min: 0.1, max: 12, step: 0.1 })
+    const scale = this.num('scale', d.scale, { min: 0.05, max: 4, step: 0.01 })
+    const angle = this.num('angle', d.angle, { min: -Math.PI, max: Math.PI, step: 0.01 })
+    const n = this.num('n', d.n, { min: 2, max: 600, step: 1 })
+    const frequency = this.num('frequency', d.frequency, { min: 0.1, max: 12, step: 0.1 })
     const phase = this.num('phase', d.phase, { min: 0, max: TAU, step: 0.01 })
     const heightAbove = this.num('heightAbove', d.heightAbove, { min: 0, max: 120, step: 0.5 })
     const heightBelow = this.num('heightBelow', d.heightBelow, { min: 0, max: 120, step: 0.5 })
     const offsetC = this.num('offsetC', d.offsetC, { min: -40, max: 40, step: 0.5 })
-    this.smoothAbove = this.num('smoothAbove', d.smoothAbove, { min: 0, max: 40, step: 0.5 })
-    this.smoothBelow = this.num('smoothBelow', d.smoothBelow, { min: 0, max: 40, step: 0.5 })
-    this.headN = this.num('headN', d.headN, { min: 0, max: 60, step: 1 })
+    const smoothAbove = this.num('smoothAbove', d.smoothAbove, { min: 0, max: 40, step: 0.5 })
+    const smoothBelow = this.num('smoothBelow', d.smoothBelow, { min: 0, max: 40, step: 0.5 })
+    const headN = this.num('headN', d.headN, { min: 0, max: 60, step: 1 })
     const head = this.bool('head', d.head)
     const double = this.bool('double', d.double)
 
-    // The centre line runs through (x, y), tilted by `angle`.
-    const halfW = (length * this.width) / 2
-    const halfH = halfW * Math.tan(angle)
-    this.line = {
-      x0: this.box.toX(x) - halfW,
-      yA: this.box.toY(y) - halfH,
-      yB: this.box.toY(y) + halfH,
-      spacing: (2 * halfW) / this.n,
-    }
+    // The centre line runs through (x, y) at `angle`. Swing past a right angle
+    // and dx goes negative: the ribs march the other way and the bird reverses.
+    const half = (length * scale * this.width) / 2
+    const dx = half * Math.cos(angle)
+    const dy = half * Math.sin(angle)
+    const x0 = this.box.toX(x) - dx
+    const yA = this.box.toY(y) - dy
+    const yB = this.box.toY(y) + dy
 
+    // everything with a size in it reads through the scale
+    const strand: Strand = {
+      phase, head,
+      offsetC: offsetC * scale,
+      heightAbove: heightAbove * scale,
+      heightBelow: heightBelow * scale,
+    }
+    const ribOpts = {
+      frequency, headN,
+      smoothAbove: smoothAbove * scale,
+      smoothBelow: smoothBelow * scale,
+    }
     // The overlay's params only exist while it does, to keep folders short.
-    let overlay: Strand | null = null
-    if (double) {
-      const swap = this.bool('doubleSwapHeights', d.doubleSwapHeights)
-      overlay = {
-        phase: phase + this.num('doublePhase', d.doublePhase, { min: -TAU, max: TAU, step: 0.01 }),
-        offsetC: offsetC + this.num('doubleOffsetC', d.doubleOffsetC, { min: -40, max: 40, step: 0.5 }),
-        heightAbove: swap ? heightBelow : heightAbove,
-        heightBelow: swap ? heightAbove : heightBelow,
-        // the head ribs are drawn once, by the overlay when there is one
-        head,
-      }
-    }
+    const overlay = double ? overlayStrand(this, strand, d, scale) : null
 
+    const samples = straightSpine({ x0, yA, yB, dx, n })
     this.spine = [
-      ...this.ribs({ phase, offsetC, heightAbove, heightBelow, head: head && !double }),
-      ...(overlay ? this.ribs(overlay) : []),
+      ...ribs(samples, { ...strand, head: head && !double }, ribOpts),
+      ...(overlay ? ribs(samples, overlay, ribOpts) : []),
     ]
-  }
 
-  private ribs({ phase, offsetC, heightAbove, heightBelow, head }: Strand): Segment[] {
-    const { x0, yA, yB, spacing } = this.line
-    return Array.from({ length: this.n }, (_v, i) => {
-      if (i === 0 || (!head && i < this.headN)) return []
-      const cx = x0 + spacing * (i + 0.5)
-      const centerY = yA + (yB - yA) * (i / this.n)
-      const wave = Math.sin((TAU * this.frequency * i) / this.n + phase)
-      const other = wave >= 0
-        ? centerY - heightAbove * wave
-        : centerY + heightBelow * Math.abs(wave)
-      const startY = wave < 0
-        ? centerY + this.smoothAbove * Math.abs(wave)
-        : centerY - this.smoothBelow * wave
-      const c = point(cx + offsetC, (startY + other) / 2)
-      return i < this.headN
-        ? [segment(point(cx, startY), c)]
-        : [segment(point(cx, startY), c), segment(c, point(cx, other))]
-    }).flat()
+    // drag the middle to move the bird, the tip to aim and stretch it — all
+    // the way round, so dragging the tip past the middle reverses the bird
+    Handle.param(this, 'x', 'y', { label: handleLabel(this.params.path) })
+    new Handle(this, {
+      id: 'tip',
+      at: () => ({ x: x + dx / this.width, y: y + dy / this.height }),
+      move: (tipX, tipY) => {
+        const armX = (tipX - x) * this.width
+        const armY = (tipY - y) * this.height
+        const arm = Math.hypot(armX, armY)
+        if (arm < 1) return // dropped on the middle: no direction to read
+        this.params.set('length', (2 * arm) / this.width / scale, { silent: true })
+        this.params.set('angle', Math.atan2(armY, armX))
+      },
+    })
   }
 
   draw() {
     this.layer('lines', () => drawFlatten(this.p5, this.spine))
   }
+}
+
+/**
+ * Ribs march along x in even steps while the centre line slides from yA to yB.
+ * They stay vertical whatever the tilt — that is what makes a bird a bird.
+ */
+function straightSpine({ x0, yA, yB, dx, n }: {
+  x0: number, yA: number, yB: number, dx: number, n: number,
+}): SpineSample[] {
+  const spacing = (2 * dx) / n
+  return Array.from({ length: n }, (_v, i) => ({
+    at: { x: x0 + spacing * (i + 0.5), y: yA + (yB - yA) * (i / n) },
+    out: { x: 0, y: -1 },
+    along: { x: 1, y: 0 },
+  }))
 }

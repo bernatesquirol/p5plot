@@ -28,6 +28,15 @@ export type ParamOpts = {
 
 type Entry = { v: any; d: any }
 
+/** Where a route's params live between sessions — and what a saved file holds. */
+export const paramsStorageKey = (route: string) => `p5plot:params:${route}`
+/**
+ * Set alongside the params to mark them as loaded from a file rather than
+ * carried over from the last session, which decides who wins when a default
+ * has changed in the code since: the file, or the code.
+ */
+export const paramsLoadedKey = (route: string) => `${paramsStorageKey(route)}:loaded`
+
 export class ParamStore {
   gui: GUI
   /** registered this session: what the panel shows */
@@ -38,7 +47,13 @@ export class ParamStore {
   private folders = new Map<string, GUI>()
   /** ids that are deliberately not remembered between sessions */
   private transient = new Set<string>()
+  /** values set before their param was registered — applied when it shows up */
+  private pending: Record<string, any> = {}
+  /** button callbacks, refreshed on every rebuild so none of them go stale */
+  private buttonFns: Record<string, { fn: () => void }> = {}
   private storageKey?: string
+  /** values came from a file the user picked, so they outrank code defaults */
+  private restoreAll = false
   private onChange: (rebuild: boolean) => void
   private saveTimer?: number
 
@@ -90,7 +105,13 @@ export class ParamStore {
 
   set(key: string, v: any, { silent = false, rebuild = true } = {}) {
     const e = this.entries[key]
-    if (!e) return
+    // a param that doesn't exist yet (a folder about to be built) gets its
+    // value parked, so callers don't have to care when the rebuild lands
+    if (!e) {
+      this.pending[key] = v
+      if (!silent) this.onChange(rebuild)
+      return
+    }
     e.v = v
     this.controllers[key]?.updateDisplay()
     this.persist()
@@ -118,7 +139,18 @@ export class ParamStore {
       delete this.stored[id] // drop anything an earlier version of the code saved
     }
     const restored = opts.transient ? undefined : this.stored[id]
-    this.entries[id] = restored && deepEqual(restored.d, def) ? { ...restored } : { v: def, d: def }
+    // Ordinarily a default changed in code wins over a carried value; a value
+    // out of a saved file wins instead. Either way the default recorded from
+    // here on is the current one, so later rebuilds leave the value alone.
+    const keep = restored && (this.restoreAll || deepEqual(restored.d, def))
+    this.entries[id] = keep ? { v: restored!.v, d: def } : { v: def, d: def }
+    // A file records the defaults it was saved against. Write the values back
+    // under the current ones, or the next reload would treat them as stale.
+    if (keep && this.restoreAll) this.persist()
+    if (id in this.pending) {
+      this.entries[id].v = this.pending[id]
+      delete this.pending[id]
+    }
 
     if (!opts.hidden) {
       // lil-gui writes straight onto the object it is handed, so hand it a
@@ -145,11 +177,40 @@ export class ParamStore {
     return this.entries[id].v
   }
 
+  /**
+   * Buttons are registered once but rebuilt closures replace the callback, so
+   * a handler always sees the state of the current build, not the first one.
+   */
   button(path: string, label: string, fn: () => void) {
     const id = `${path ? path + '/' : ''}${label}()`
-    if (this.controllers[id]) return
-    const holder = { [label]: fn }
-    this.controllers[id] = this.folder(path).add(holder, label)
+    const known = this.buttonFns[id]
+    if (known) {
+      known.fn = fn
+      return
+    }
+    const holder = { fn }
+    this.buttonFns[id] = holder
+    this.controllers[id] = this.folder(path).add({ [label]: () => holder.fn() }, label)
+  }
+
+  /**
+   * Every value registered under `path`, keyed without it. Shallow by default;
+   * `deep` also takes nested folders, whose keys keep their slashes — which is
+   * what `assign` expects, so a deep read feeds straight back into a write.
+   */
+  values(path: string, { deep = false } = {}): Record<string, any> {
+    const prefix = path ? `${path}/` : ''
+    return Object.fromEntries(Object.entries(this.entries)
+      .filter(([id]) => id.startsWith(prefix) && (deep || !id.slice(prefix.length).includes('/')))
+      .map(([id, e]) => [id.slice(prefix.length), e.v]))
+  }
+
+  /** Write a whole folder at once, rebuilding once at the end (or not at all). */
+  assign(path: string, values: Record<string, any>, { silent = false } = {}) {
+    const keys = Object.keys(values)
+    keys.forEach((key, i) => this.set(path ? `${path}/${key}` : key, values[key], {
+      silent: silent || i < keys.length - 1,
+    }))
   }
 
   /** Drop every stored value. The caller is expected to reload afterwards. */
@@ -161,6 +222,17 @@ export class ParamStore {
 
   snapshot(): Record<string, any> {
     return Object.fromEntries(Object.entries(this.entries).map(([k, e]) => [k, e.v]))
+  }
+
+  /**
+   * Everything worth keeping, in the shape localStorage (and a saved file)
+   * uses: value plus the default it was based on. Transient params are left
+   * out — a saved plot shouldn't decide whether a simulation is running.
+   */
+  entriesForSaving(): Record<string, Entry> {
+    return Object.fromEntries(Object.entries(this.entries)
+      .filter(([id]) => !this.transient.has(id))
+      .map(([id, e]) => [id, { v: e.v, d: e.d }]))
   }
 
   destroy() {
@@ -185,6 +257,12 @@ export class ParamStore {
     try {
       const raw = localStorage.getItem(this.storageKey)
       if (raw) this.stored = JSON.parse(raw)
+      // one-shot: the flag is consumed by the panel it was written for
+      const loadedKey = `${this.storageKey}:loaded`
+      if (localStorage.getItem(loadedKey)) {
+        this.restoreAll = true
+        localStorage.removeItem(loadedKey)
+      }
     } catch { this.stored = {} }
   }
 }
@@ -221,6 +299,14 @@ export class ParamScope {
   }
   set(key: string, v: any, opts?: { silent?: boolean; rebuild?: boolean }) {
     this.store.set(this.path ? `${this.path}/${key}` : key, v, opts)
+  }
+  /** every value in this scope, keyed relative to it */
+  values(opts?: { deep?: boolean }) {
+    return this.store.values(this.path, opts)
+  }
+  /** write several values, rebuilding once */
+  assign(values: Record<string, any>, opts?: { silent?: boolean }) {
+    this.store.assign(this.path, values, opts)
   }
   folder() {
     return this.store.folder(this.path)

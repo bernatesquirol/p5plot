@@ -14,10 +14,30 @@ export type RegistryEntry = {
  * Add a plot here and it shows up in the gallery, the picker and the URL bar.
  */
 export const PLOTS: Record<string, RegistryEntry> = {
+  playground: {
+    title: 'Playground',
+    note: 'compose plots and pieces on one sheet',
+    load: () => import('./plots/playground'),
+  },
+  piscina: {
+    title: 'Piscina',
+    note: 'the corner of a pool: three grids, painted tile by tile',
+    load: () => import('./plots/260905_piscina'),
+  },
+  acuarella: {
+    title: 'Aquarel·la',
+    note: 'watercolour bands: buckets either side, one brush',
+    load: () => import('./plots/260905_acuarella'),
+  },
   ocell: {
     title: 'Ocell',
     note: 'spine waves, IKEA 4x6',
     load: () => import('./plots/260606_ocell'),
+  },
+  'circular-bird': {
+    title: 'Circular bird',
+    note: 'the same ribs, wound round a spiral',
+    load: () => import('./plots/260606_ocell/CircularBird'),
   },
   rose: {
     title: 'Rose',
